@@ -24,7 +24,7 @@ export default class Order extends BaseModel {
   })
   declare shippingAddress: object
 
-  // --- Billing Snapshot (NEW) ---
+  // --- Billing Snapshot ---
   @column({
     prepare: (value: object) => JSON.stringify(value),
     consume: (value: any) => (typeof value === 'string' ? JSON.parse(value) : value),
@@ -33,6 +33,8 @@ export default class Order extends BaseModel {
 
   @column()
   declare paymentIntentId: string | null
+
+  // REMOVED: stock & isOutOfStock (These belong on Product, not Order)
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

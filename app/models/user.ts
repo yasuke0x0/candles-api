@@ -1,21 +1,30 @@
 import { DateTime } from 'luxon'
+import hash from '@adonisjs/core/services/hash'
+import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, beforeCreate, column, hasMany } from '@adonisjs/lucid/orm'
-import type { HasMany } from '@adonisjs/lucid/types/relations'
+import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
+import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import Address from '#models/address'
+import type { HasMany } from '@adonisjs/lucid/types/relations'
 import Order from '#models/order'
 
-export default class User extends BaseModel {
+const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
+  uids: ['email'],
+  passwordColumnName: 'password',
+})
+
+export default class User extends compose(BaseModel, AuthFinder) {
   @column({ isPrimary: true })
   declare id: number
+
+  @column()
+  declare email: string
 
   @column()
   declare firstName: string | null
 
   @column()
   declare lastName: string | null
-
-  @column()
-  declare email: string
 
   @column({ serializeAs: null })
   declare password: string
@@ -26,7 +35,6 @@ export default class User extends BaseModel {
   })
   declare roles: ('SUPER_ADMIN' | 'CUSTOMER')[]
 
-  // --- FIX: Set Default Role Here ---
   @beforeCreate()
   static async setDefaultRole(user: User) {
     if (!user.roles) {
@@ -38,11 +46,13 @@ export default class User extends BaseModel {
   declare createdAt: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
+  declare updatedAt: DateTime | null
 
   @hasMany(() => Address)
   declare addresses: HasMany<typeof Address>
 
   @hasMany(() => Order)
   declare orders: HasMany<typeof Order>
+
+  static accessTokens = DbAccessTokensProvider.forModel(User)
 }

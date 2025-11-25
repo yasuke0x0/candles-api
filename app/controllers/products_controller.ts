@@ -7,6 +7,7 @@ export default class ProductsController {
    * GET /products
    */
   public async index({ response }: HttpContext) {
+    // Optional: Hide out-of-stock items if desired, or let frontend handle it
     const products = await Product.all()
     return response.ok(products)
   }
@@ -46,6 +47,7 @@ export default class ProductsController {
         scentNotes: ['Amber', 'Sandalwood', 'Vanilla'],
         burnTime: '45-50 hours',
         isNew: true,
+        stock: 50, // Added Stock
       },
       {
         name: 'Sage & Sea Salt',
@@ -57,6 +59,7 @@ export default class ProductsController {
         scentNotes: ['Sea Salt', 'Sage', 'Driftwood'],
         burnTime: '40-45 hours',
         isNew: false,
+        stock: 50, // Added Stock
       },
       {
         name: 'Lavender Haze',
@@ -68,6 +71,7 @@ export default class ProductsController {
         scentNotes: ['Lavender', 'Eucalyptus', 'White Tea'],
         burnTime: '45-50 hours',
         isNew: false,
+        stock: 50, // Added Stock
       },
       {
         name: 'Cedar & Tobacco',
@@ -79,6 +83,7 @@ export default class ProductsController {
         scentNotes: ['Tobacco', 'Cedar', 'Leather'],
         burnTime: '50-55 hours',
         isNew: false,
+        stock: 50, // Added Stock
       },
       {
         name: 'Golden Pear',
@@ -90,6 +95,7 @@ export default class ProductsController {
         scentNotes: ['Pear', 'Cinnamon', 'Brandy'],
         burnTime: '40-45 hours',
         isNew: false,
+        stock: 50, // Added Stock
       },
       {
         name: 'White Tea & Ginger',
@@ -100,6 +106,7 @@ export default class ProductsController {
         scentNotes: ['White Tea', 'Ginger', 'Lemon'],
         burnTime: '45-50 hours',
         isNew: false,
+        stock: 50, // Added Stock
       },
     ]
 

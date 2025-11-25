@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { BaseModel, column, computed } from '@adonisjs/lucid/orm'
 
 export default class Product extends BaseModel {
   @column({ isPrimary: true })
@@ -22,6 +22,16 @@ export default class Product extends BaseModel {
 
   @column()
   declare isNew: boolean
+
+  // --- ADDED STOCK HERE ---
+  @column()
+  declare stock: number
+
+  // --- Helper to check stock status ---
+  @computed()
+  get isOutOfStock() {
+    return this.stock <= 0
+  }
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

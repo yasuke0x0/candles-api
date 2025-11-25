@@ -1,8 +1,10 @@
 import router from '@adonisjs/core/services/router'
+import { middleware } from '#start/kernel'
 
 // Import Controllers lazily
 const ProductsController = () => import('#controllers/products_controller')
 const OrdersController = () => import('#controllers/orders_controller')
+const AdminInventoryController = () => import('#controllers/admin_inventory_controller')
 
 router
   .group(() => {
@@ -18,6 +20,13 @@ router
 
     // Order Routes
     router.post('/orders', [OrdersController, 'store'])
+
+    // Protected Routes (User must be logged in)
+    router
+      .group(() => {
+        router.post('/admin/inventory/adjust', [AdminInventoryController, 'adjust'])
+      })
+      .use(middleware.auth()) // <--- This ensures auth.user is populated
   })
   .prefix('api') // All routes will start with /api
 
