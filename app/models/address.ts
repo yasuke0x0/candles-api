@@ -11,10 +11,10 @@ export default class Address extends BaseModel {
   declare userId: number
 
   @column()
-  declare recipientName: string
+  declare streetAddressLineOne: string
 
   @column()
-  declare streetAddress: string
+  declare streetAddressLineTwo: string | null
 
   @column()
   declare city: string
@@ -26,7 +26,7 @@ export default class Address extends BaseModel {
   declare country: string
 
   @column()
-  declare label: string | null
+  declare type: 'SHIPPING' | 'BILLING'
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

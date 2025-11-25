@@ -7,12 +7,13 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id').notNullable()
 
-      table.string('full_name').nullable()
+      table.string('first_name').nullable()
+      table.string('last_name').nullable()
       table.string('email', 254).notNullable().unique()
       table.string('password').notNullable()
 
-      // 'customer' or 'admin' - Default is customer
-      table.string('role').defaultTo('customer').notNullable()
+      // FIX: Removed .defaultTo(...). MySQL cannot handle defaults on JSON columns.
+      table.json('roles').notNullable()
 
       table.timestamp('created_at').notNullable()
       table.timestamp('updated_at').nullable()

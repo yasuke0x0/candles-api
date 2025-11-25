@@ -5,7 +5,6 @@ export default class Product extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
-  // --- Add these missing columns ---
   @column()
   declare name: string
 
@@ -23,7 +22,6 @@ export default class Product extends BaseModel {
 
   @column()
   declare isNew: boolean
-  // --------------------------------
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

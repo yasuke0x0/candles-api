@@ -6,19 +6,17 @@ export default class extends BaseSchema {
   async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
-
-      // Foreign Key: Links address to a specific User
-      // onDelete('CASCADE') means if User is deleted, their addresses are also deleted
       table.integer('user_id').unsigned().references('users.id').onDelete('CASCADE')
 
-      table.string('recipient_name').notNullable() // e.g., "John Doe"
-      table.string('street_address').notNullable()
+      // Address Fields
+      table.string('street_address_line_one').notNullable()
+      table.string('street_address_line_two').nullable()
       table.string('city').notNullable()
       table.string('postal_code').notNullable()
       table.string('country').defaultTo('France')
 
-      // Optional: Label like "Home", "Work"
-      table.string('label').nullable()
+      // Type: 'shipping', 'billing', or 'both'
+      table.string('type').defaultTo('shipping')
 
       table.timestamp('created_at')
       table.timestamp('updated_at')
