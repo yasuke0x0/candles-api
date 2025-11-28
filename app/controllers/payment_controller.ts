@@ -11,7 +11,6 @@ const stripeClient = new stripe(env.get('STRIPE_SECRET_KEY'), {
 export default class PaymentController {
   public async createIntent({ request, response }: HttpContext) {
     // 1. Get only the necessary identification data from client
-    // We ignore any 'price' or 'total' sent by the client.
     const { items } = request.body()
 
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -34,12 +33,16 @@ export default class PaymentController {
 
         // Security Check 1: Does product exist?
         if (!product) {
-          throw new Error(`Product ID ${item.id} unavailable.`)
+          // REFACTOR: Return directly instead of throwing
+          return response.badRequest({ message: `Product ID ${item.id} unavailable.` })
         }
 
         // Security Check 2: Is there enough stock? (Prevent overselling)
         if (product.stock < item.quantity) {
-          throw new Error(`Insufficient stock for ${product.name}. Available: ${product.stock}`)
+          // REFACTOR: Return directly instead of throwing
+          return response.badRequest({
+            message: `Insufficient stock for ${product.name}. Available: ${product.stock}`
+          })
         }
 
         // Security Check 3: Use Database Price * Quantity
@@ -51,22 +54,22 @@ export default class PaymentController {
       calculatedTotal += SHIPPING_COST
 
       // 5. Convert to Cents (Stripe requires integers)
-      // Rounding handles potential floating point math issues
       const amountInCents = Math.round(calculatedTotal * 100)
 
       // Minimum charge check (Stripe requires usually > $0.50)
       if (amountInCents < 50) {
-        throw new Error('Amount too low to process')
+        // REFACTOR: Return directly
+        return response.badRequest({ message: 'Amount too low to process' })
       }
 
       // 6. Create the PaymentIntent
+      // This call to Stripe might fail (network, api key), so it stays in the try block
       const paymentIntent = await stripeClient.paymentIntents.create({
         amount: amountInCents,
         currency: 'eur',
         automatic_payment_methods: {
           enabled: true,
         },
-        // Metadata allows you to link this payment to a cart/user later via Webhooks
         metadata: {
           product_ids: productIds.join(','),
         },
@@ -75,11 +78,16 @@ export default class PaymentController {
       // 7. Send the secure Client Secret
       return response.ok({
         clientSecret: paymentIntent.client_secret,
-        serverCalculatedTotal: calculatedTotal, // Optional: let frontend know the real total
+        serverCalculatedTotal: calculatedTotal,
       })
     } catch (error) {
+      // Log the full error internally for debugging
       console.error('Payment Intent Error:', error)
-      return response.badRequest({ message: error.message })
+
+      // SECURITY: Return a generic message to the client to avoid exposing DB/Internal details
+      return response.badRequest({
+        message: 'Unable to initialize payment. Please contact support.'
+      })
     }
   }
 }
