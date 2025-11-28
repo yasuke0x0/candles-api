@@ -5,6 +5,8 @@ import { middleware } from '#start/kernel'
 const ProductsController = () => import('#controllers/products_controller')
 const OrdersController = () => import('#controllers/orders_controller')
 const AdminInventoryController = () => import('#controllers/admin_inventory_controller')
+const PaymentController = () => import('#controllers/payment_controller')
+const StripeWebhookController = () => import('#controllers/stripe_webhook_controller')
 
 router
   .group(() => {
@@ -20,6 +22,10 @@ router
 
     // Order Routes
     router.post('/orders', [OrdersController, 'store'])
+    router.post('/create-payment-intent', [PaymentController, 'createIntent'])
+
+    // Stripe webhook
+    router.post('/stripe-webhook', [StripeWebhookController, 'handle'])
 
     // Protected Routes (User must be logged in)
     router

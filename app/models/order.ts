@@ -15,7 +15,17 @@ export default class Order extends BaseModel {
   declare totalAmount: number
 
   @column()
-  declare status: string
+  declare status:
+    | 'canceled' // Occurs when a PaymentIntent is canceled.
+    | 'created' // Occurs when a new PaymentIntent is created.
+    | 'partially_funded' // Occurs when funds are applied to a customer_balance PaymentIntent and the 'amount_remaining' changes.
+    | 'payment_failed' // Occurs when a PaymentIntent has failed the attempt to create a payment method or a payment.
+    | 'processing' // Occurs when a PaymentIntent has started processing.
+    | 'requires_action' // Occurs when a PaymentIntent transitions to requires_action state
+    | 'succeeded' // Occurs when a PaymentIntent has successfully completed payment.
+    | 'READY_TO_SHIP'
+    | 'SHIPPED'
+    | string
 
   // --- Shipping Snapshot ---
   @column({

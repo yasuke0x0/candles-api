@@ -26,7 +26,7 @@ export default class OrderService {
           shippingAddress,
           billingAddress,
           paymentIntentId,
-          status: 'paid', // Or 'pending' if waiting for webhook
+          status: 'created',
           totalAmount: 0,
         },
         { client: trx }
