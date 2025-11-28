@@ -12,7 +12,8 @@ export default class extends BaseSchema {
       table.string('email', 254).notNullable().unique()
       table.string('password').notNullable()
 
-      // FIX: Removed .defaultTo(...). MySQL cannot handle defaults on JSON columns.
+      table.boolean('newsletter').notNullable().defaultTo(false)
+
       table.json('roles').notNullable()
 
       table.timestamp('created_at').notNullable()

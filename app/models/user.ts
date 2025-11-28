@@ -29,6 +29,9 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column({ serializeAs: null })
   declare password: string
 
+  @column()
+  declare newsletter: boolean
+
   @column({
     prepare: (value: string[]) => JSON.stringify(value),
     consume: (value: any) => (typeof value === 'string' ? JSON.parse(value) : value),
