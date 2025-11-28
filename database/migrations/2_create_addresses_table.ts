@@ -8,6 +8,10 @@ export default class extends BaseSchema {
       table.increments('id')
       table.integer('user_id').unsigned().references('users.id').onDelete('CASCADE')
 
+      table.string('first_name').nullable()
+      table.string('last_name').nullable()
+      table.string('company_name').nullable()
+
       // Address Fields
       table.string('street_address_line_one').notNullable()
       table.string('street_address_line_two').nullable()

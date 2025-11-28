@@ -2,11 +2,52 @@ import db from '@adonisjs/lucid/services/db'
 import Order from '#models/order'
 import OrderItem from '#models/order_item'
 import User from '#models/user'
+import Address from '#models/address'
 import InventoryService from '#services/inventory_service'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 export default class OrderService {
   private inventoryService = new InventoryService()
   private readonly SHIPPING_COST = 15.0
+
+  /**
+   * Helper to Find an existing address or Create a new one.
+   * This prevents duplicate rows in the address book.
+   */
+  private async findOrCreateAddress(
+    user: User,
+    data: any,
+    type: 'SHIPPING' | 'BILLING',
+    trx: TransactionClientContract
+  ) {
+    // 1. Search for an exact match for this user
+    const existingAddress = await Address.query({ client: trx })
+      .where('user_id', user.id)
+      .andWhere('type', type)
+      .andWhere('street_address_line_one', data.address) // Map frontend 'address' to DB 'street_address_line_one'
+      .andWhere('city', data.city)
+      .andWhere('postal_code', data.zip) // Map frontend 'zip' to DB 'postal_code'
+      .andWhere('country', data.country)
+      .first()
+
+    if (existingAddress) {
+      return existingAddress
+    }
+
+    // 2. If not found, create a new one
+    return await Address.create(
+      {
+        userId: user.id,
+        type: type,
+        streetAddressLineOne: data.address,
+        city: data.city,
+        postalCode: data.zip,
+        country: data.country,
+        // Note: Add 'recipient_name' to your Address model if you want to store FirstName/LastName separately on the address
+      },
+      { client: trx }
+    )
+  }
 
   /**
    * Creates an order, decrements stock, and ensures data integrity.
@@ -22,12 +63,17 @@ export default class OrderService {
     const trx = await db.transaction()
 
     try {
+      // 1. Resolve Addresses (Find or Create)
+      const shippingAddr = await this.findOrCreateAddress(user, shippingAddress, 'SHIPPING', trx)
+
+      const billingAddr = await this.findOrCreateAddress(user, billingAddress, 'BILLING', trx)
+
       // 2. Create the Order Shell first
       const order = await Order.create(
         {
           userId: user.id,
-          shippingAddress,
-          billingAddress,
+          shippingAddressId: shippingAddr.id,
+          billingAddressId: billingAddr.id,
           paymentIntentId,
           status: 'created', // The status is initialized as created and then modified through webhook
           totalAmount: 0,

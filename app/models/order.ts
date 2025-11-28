@@ -3,6 +3,7 @@ import { BaseModel, belongsTo, column, hasMany } from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import User from '#models/user'
 import OrderItem from '#models/order_item'
+import Address from '#models/address'
 
 export default class Order extends BaseModel {
   @column({ isPrimary: true })
@@ -27,24 +28,26 @@ export default class Order extends BaseModel {
     | 'SHIPPED'
     | string
 
-  // --- Shipping Snapshot ---
-  @column({
-    prepare: (value: object) => JSON.stringify(value),
-    consume: (value: any) => (typeof value === 'string' ? JSON.parse(value) : value),
-  })
-  declare shippingAddress: object
+  @column()
+  declare shippingAddressId: number
 
-  // --- Billing Snapshot ---
-  @column({
-    prepare: (value: object) => JSON.stringify(value),
-    consume: (value: any) => (typeof value === 'string' ? JSON.parse(value) : value),
+  @belongsTo(() => Address, {
+    foreignKey: 'shippingAddressId',
   })
-  declare billingAddress: object
+  declare shippingAddress: BelongsTo<typeof Address>
+
+  @column()
+  declare billingAddressId: number
+
+  @belongsTo(() => Address, {
+    foreignKey: 'billingAddressId',
+  })
+  declare billingAddress: BelongsTo<typeof Address>
+
+  // ---------------------------------
 
   @column()
   declare paymentIntentId: string | null
-
-  // REMOVED: stock & isOutOfStock (These belong on Product, not Order)
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -52,7 +55,6 @@ export default class Order extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 
-  // --- Relationships ---
   @belongsTo(() => User)
   declare user: BelongsTo<typeof User>
 

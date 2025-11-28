@@ -44,15 +44,6 @@ export default class OrdersController {
           return response.badRequest({ message: 'Payment intent does not exist' })
         }
 
-        // B. Ensure payment was successful
-        // Note: For some async payment methods, status might be 'processing'.
-        // Adjust strictness based on your needs. 'succeeded' is safest for cards.
-        if (paymentIntent.status !== 'succeeded') {
-          return response.badRequest({
-            message: `Payment not completed. Status: ${paymentIntent.status}`,
-          })
-        }
-
         // C. Capture the amount paid (in cents) to verify against cart later
         stripeAmount = paymentIntent.amount
       } catch (err) {

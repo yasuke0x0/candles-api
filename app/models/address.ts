@@ -11,6 +11,15 @@ export default class Address extends BaseModel {
   declare userId: number
 
   @column()
+  declare firstName: string | null
+
+  @column()
+  declare lastName: string | null
+
+  @column()
+  declare companyName: string | null
+
+  @column()
   declare streetAddressLineOne: string
 
   @column()
