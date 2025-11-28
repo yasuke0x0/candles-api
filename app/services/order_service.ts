@@ -40,10 +40,13 @@ export default class OrderService {
         userId: user.id,
         type: type,
         streetAddressLineOne: data.address,
+        streetAddressLineTwo: data.streetAddressLineTwo,
         city: data.city,
         postalCode: data.zip,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        companyName: data.companyName,
         country: data.country,
-        // Note: Add 'recipient_name' to your Address model if you want to store FirstName/LastName separately on the address
       },
       { client: trx }
     )
