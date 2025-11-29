@@ -54,8 +54,6 @@ export default class Order extends BaseModel {
   @column()
   declare shippingAmount: number // Shipping Cost
 
-  @column()
-  declare vatRate: number | null // Snapshot of rate applied
   // ---------------------------
 
   @column()

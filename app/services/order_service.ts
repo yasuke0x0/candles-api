@@ -56,7 +56,6 @@ export default class OrderService {
           amountWithoutVat: 0,
           vatAmount: 0,
           shippingAmount: this.SHIPPING_COST,
-          vatRate: this.DEFAULT_VAT_RATE, // Global/Default rate snapshot
         },
         { client: trx }
       )

@@ -37,8 +37,6 @@ export default class extends BaseSchema {
       // 4. Total Amount (Net + VAT + Shipping) - Final charge to customer
       table.decimal('total_amount', 10, 2).notNullable()
 
-      // 5. Global VAT Rate (Snapshot, e.g. 20.00)
-      table.decimal('vat_rate', 10, 2).nullable()
       // ---------------------------
 
       table.string('status').defaultTo('pending')
