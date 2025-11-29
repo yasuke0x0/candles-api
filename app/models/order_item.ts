@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo } from '@adonisjs/lucid/orm'
+import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import Order from '#models/order'
 import Product from '#models/product'
@@ -18,10 +18,31 @@ export default class OrderItem extends BaseModel {
   declare productName: string
 
   @column()
+  declare quantity: number
+
+  // --- PRICING SNAPSHOTS ---
+
+  // Unit Price (Gross)
+  @column()
   declare price: number
 
+  // Unit Price (Net / Without VAT)
   @column()
-  declare quantity: number
+  declare priceNet: number
+
+  // VAT %
+  @column()
+  declare vatRate: number
+
+  // Total VAT for this line
+  @column()
+  declare vatAmount: number
+
+  // Total Amount (Net + VAT) for this line
+  @column()
+  declare totalPrice: number
+
+  // -------------------------
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

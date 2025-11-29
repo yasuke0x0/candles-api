@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, computed } from '@adonisjs/lucid/orm'
+import { BaseModel, beforeSave, column, computed } from '@adonisjs/lucid/orm'
 
 export default class Product extends BaseModel {
   @column({ isPrimary: true })
@@ -12,9 +12,6 @@ export default class Product extends BaseModel {
   declare description: string
 
   @column()
-  declare price: number
-
-  @column()
   declare image: string
 
   @column()
@@ -23,11 +20,39 @@ export default class Product extends BaseModel {
   @column()
   declare isNew: boolean
 
-  // --- ADDED STOCK HERE ---
   @column()
   declare stock: number
 
-  // --- Helper to check stock status ---
+  // --- PRICING & VAT ---
+
+  // The Gross Price (displayed to user)
+  @column()
+  declare price: number
+
+  @column()
+  declare vatRate: number
+
+  @column()
+  declare priceNet: number
+
+  // Helper to format price
+  @computed()
+  get formattedPrice() {
+    return `€${Number(this.price).toFixed(2)}`
+  }
+
+  // Auto-calculate Net Price before saving if it wasn't provided
+  @beforeSave()
+  static async calculateNetPrice(product: Product) {
+    if (product.price && !product.priceNet) {
+      const rate = product.vatRate || 20.0
+      // Net = Gross / (1 + Rate/100)
+      product.priceNet = Number(product.price) / (1 + rate / 100)
+    }
+  }
+
+  // ---------------------
+
   @computed()
   get isOutOfStock() {
     return this.stock <= 0

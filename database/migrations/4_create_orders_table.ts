@@ -10,7 +10,7 @@ export default class extends BaseSchema {
       // User Link
       table.integer('user_id').unsigned().references('users.id').onDelete('CASCADE').notNullable()
 
-      // We use RESTRICT to prevent deleting an address if it is part of an order history
+      // Address Links
       table
         .integer('shipping_address_id')
         .unsigned()
@@ -24,8 +24,23 @@ export default class extends BaseSchema {
         .onDelete('RESTRICT')
         .notNullable()
 
-      // Order Details
+      // --- FINANCIAL BREAKDOWN ---
+      // 1. Net Amount (Price of items before tax)
+      table.decimal('amount_without_vat', 10, 2).notNullable().defaultTo(0)
+
+      // 2. VAT Amount (Total tax calculated)
+      table.decimal('vat_amount', 10, 2).notNullable().defaultTo(0)
+
+      // 3. Shipping Cost
+      table.decimal('shipping_amount', 10, 2).notNullable().defaultTo(0)
+
+      // 4. Total Amount (Net + VAT + Shipping) - Final charge to customer
       table.decimal('total_amount', 10, 2).notNullable()
+
+      // 5. Global VAT Rate (Snapshot, e.g. 20.00)
+      table.decimal('vat_rate', 10, 2).nullable()
+      // ---------------------------
+
       table.string('status').defaultTo('pending')
       table.string('payment_intent_id').nullable()
 

@@ -8,7 +8,10 @@ import AddressService from '#services/address_service'
 export default class OrderService {
   private inventoryService = new InventoryService()
   private addressService = new AddressService()
+
+  // Constants
   private readonly SHIPPING_COST = 15.0
+  private readonly DEFAULT_VAT_RATE = 20.0
 
   /**
    * Creates an order, decrements stock, and ensures data integrity.
@@ -20,11 +23,10 @@ export default class OrderService {
     const { items, shippingAddress, billingAddress, paymentIntentId } = payload
 
     // 1. Start a Database Transaction
-    // Everything below happens in "All or Nothing" mode.
     const trx = await db.transaction()
 
     try {
-      // 1. Resolve Addresses (Find or Create)
+      // 2. Resolve Addresses (Find or Create)
       const shippingAddr = await this.addressService.findOrCreateAddress(
         user,
         shippingAddress,
@@ -39,80 +41,108 @@ export default class OrderService {
         trx
       )
 
-      // 2. Create the Order Shell first
+      // 3. Initialize Order Shell
+      // We set initial values here, they will be updated after processing items
       const order = await Order.create(
         {
           userId: user.id,
           shippingAddressId: shippingAddr.id,
           billingAddressId: billingAddr.id,
           paymentIntentId,
-          status: 'created', // The status is initialized as created and then modified through webhook
+          status: 'created',
+
+          // Initialize Financials
           totalAmount: 0,
+          amountWithoutVat: 0,
+          vatAmount: 0,
+          shippingAmount: this.SHIPPING_COST,
+          vatRate: this.DEFAULT_VAT_RATE, // Global/Default rate snapshot
         },
         { client: trx }
       )
 
-      let calculatedTotal = 0
+      // Accumulators
+      let orderTotalGross = 0
+      let orderTotalNet = 0
+      let orderTotalVat = 0
+
       const orderItemsToCreate = []
 
-      // 3. Process Items & Manage Stock
+      // 4. Process Items & Manage Stock
       for (const item of items) {
-        // A. Decrement Stock using InventoryService
-        const product = await this.inventoryService.adjustStock(
-          item.id,
-          -item.quantity, // Negative quantity for sales
-          'SALE',
-          {
-            userId: user.id,
-            orderId: order.id,
-            trx: trx, // IMPORTANT: Must use the same transaction
-          }
-        )
+        // A. Decrement Stock
+        const product = await this.inventoryService.adjustStock(item.id, -item.quantity, 'SALE', {
+          userId: user.id,
+          orderId: order.id,
+          trx: trx,
+        })
 
-        // B. Calculate Price based on DB data (Security best practice)
-        // Ensure we cast to number as DB decimals might be strings
-        const unitPrice = Number(product.price)
-        const lineTotal = unitPrice * item.quantity
-        calculatedTotal += lineTotal
+        // B. Financial Calculations
+        // We assume product.price is the PUBLIC GROSS price (inclusive of VAT)
+        const vatRate = product.vatRate || this.DEFAULT_VAT_RATE
+        const unitPriceGross = Number(product.price)
 
-        // C. Prepare OrderItem data
+        // Calculate Net: Gross / (1 + Rate/100)
+        // Example: 30.00 / 1.20 = 25.00
+        const unitPriceNet = unitPriceGross / (1 + vatRate / 100)
+
+        // Line Totals
+        const lineTotalGross = unitPriceGross * item.quantity
+        const lineTotalNet = unitPriceNet * item.quantity
+        const lineVatAmount = lineTotalGross - lineTotalNet
+
+        // Accumulate Order Totals
+        orderTotalGross += lineTotalGross
+        orderTotalNet += lineTotalNet
+        orderTotalVat += lineVatAmount
+
+        // C. Prepare OrderItem data (Snapshot everything)
         orderItemsToCreate.push({
           orderId: order.id,
           productId: product.id,
-          productName: product.name, // Snapshot name
-          price: unitPrice, // Snapshot price
+          productName: product.name,
           quantity: item.quantity,
+
+          // Detailed Pricing
+          price: unitPriceGross, // Unit Gross
+          priceNet: unitPriceNet, // Unit Net
+          vatRate: vatRate, // VAT % applied
+          vatAmount: lineVatAmount, // Total VAT for this line
+          totalPrice: lineTotalGross, // Total Gross for this line
         })
       }
 
-      // 4. Add Shipping
-      calculatedTotal += this.SHIPPING_COST
+      // 5. Add Shipping to Final Total
+      // Note: We handle shipping as a flat gross fee here.
+      // If you need tax on shipping, calculate it here.
+      orderTotalGross += this.SHIPPING_COST
 
-      // 5. SECURITY CHECK: Compare DB Total vs Stripe Total
+      // 6. SECURITY CHECK: Compare DB Total vs Stripe Total
       if (expectedAmountInCents !== undefined) {
-        // Convert our float total to cents (e.g. 155.00 -> 15500)
-        const calculatedInCents = Math.round(calculatedTotal * 100)
+        const calculatedInCents = Math.round(orderTotalGross * 100)
 
         if (calculatedInCents !== expectedAmountInCents) {
           throw new Error(
-            `Security Mismatch: Cart total ($${calculatedTotal}) does not match paid amount.`
+            `Security Mismatch: Cart total ($${orderTotalGross.toFixed(2)}) does not match paid amount.`
           )
         }
       }
 
-      // 6. Save all Order Items
+      // 7. Save all Order Items
       await OrderItem.createMany(orderItemsToCreate, { client: trx })
 
-      // 7. Update Order Total
-      order.totalAmount = calculatedTotal
+      // 8. Update Order Totals
+      order.totalAmount = orderTotalGross
+      order.amountWithoutVat = orderTotalNet
+      order.vatAmount = orderTotalVat
+
       await order.useTransaction(trx).save()
 
-      // 8. Commit Transaction
+      // 9. Commit Transaction
       await trx.commit()
 
       return order
     } catch (error) {
-      // 9. Rollback on any error (Out of stock, Price mismatch, etc.)
       await trx.rollback()
       throw error
     }

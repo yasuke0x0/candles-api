@@ -11,11 +11,24 @@ export default class extends BaseSchema {
       table.integer('order_id').unsigned().references('orders.id').onDelete('CASCADE')
       table.integer('product_id').unsigned().references('products.id').onDelete('SET NULL')
 
-      // SNAPSHOT DATA (Crucial for historical accuracy)
-      // Even if the product name or price changes in the future,
-      // this order record remains unchanged.
+      // --- SNAPSHOT DATA ---
       table.string('product_name').notNullable()
-      table.decimal('price', 10, 2).notNullable() // Unit price at time of purchase
+
+      // 1. Unit Gross Price (e.g. 30.00)
+      table.decimal('price', 10, 2).notNullable()
+
+      // 2. Unit Net Price (e.g. 25.00)
+      table.decimal('price_net', 10, 2).notNullable().defaultTo(0)
+
+      // 3. VAT Rate (e.g. 20.00)
+      table.decimal('vat_rate', 10, 2).notNullable().defaultTo(0)
+
+      // 4. Total VAT Amount for this line (e.g. 5.00 * quantity)
+      table.decimal('vat_amount', 10, 2).notNullable().defaultTo(0)
+
+      // 5. Total Gross Amount for this line (e.g. 30.00 * quantity)
+      // This corresponds to "amount (net + vat)"
+      table.decimal('total_price', 10, 2).notNullable().defaultTo(0)
 
       table.integer('quantity').notNullable()
 
