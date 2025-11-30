@@ -1,5 +1,6 @@
 import InventoryService from '#services/inventory_service'
 import { HttpContext } from '@adonisjs/core/http'
+import HttpException from '#exceptions/http_exception'
 
 export default class AdminInventoryController {
   private inventoryService = new InventoryService()
@@ -11,7 +12,10 @@ export default class AdminInventoryController {
     const { productId, quantity, reason } = request.only(['productId', 'quantity', 'reason'])
 
     if (!productId || quantity === undefined) {
-      return response.badRequest({ message: 'Product ID and Quantity are required' })
+      throw new HttpException({
+        message: 'Product ID and Quantity are required',
+        status: 400,
+      })
     }
 
     try {
@@ -34,7 +38,16 @@ export default class AdminInventoryController {
         },
       })
     } catch (error) {
-      return response.badRequest({ message: error.message })
+      // Re-throw custom exceptions
+      if (error instanceof HttpException) {
+        throw error
+      }
+
+      // Handle unexpected errors
+      throw new HttpException({
+        message: error.message || 'Failed to adjust stock',
+        status: 400,
+      })
     }
   }
 }

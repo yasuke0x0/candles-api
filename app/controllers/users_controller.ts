@@ -1,13 +1,17 @@
 import { HttpContext } from '@adonisjs/core/http'
 import User from '#models/user'
 import string from '@adonisjs/core/helpers/string'
+import HttpException from '#exceptions/http_exception'
 
 export default class UsersController {
   public async saveContact({ request, response }: HttpContext) {
     const { email, newsletter } = request.only(['email', 'newsletter'])
 
     if (!email) {
-      return response.badRequest({ message: 'Email is required' })
+      throw new HttpException({
+        message: 'Email is required',
+        status: 400,
+      })
     }
 
     try {
@@ -34,7 +38,16 @@ export default class UsersController {
         return response.ok({ message: 'Contact info updated', userId: user.id })
       }
     } catch (error) {
-      return response.badRequest({ message: 'Failed to save contact info' })
+      // Re-throw if it's already an HttpException
+      if (error instanceof HttpException) {
+        throw error
+      }
+
+      // Wrap unexpected errors
+      throw new HttpException({
+        message: 'Failed to save contact info',
+        status: 400,
+      })
     }
   }
 }

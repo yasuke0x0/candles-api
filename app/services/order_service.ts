@@ -4,6 +4,7 @@ import OrderItem from '#models/order_item'
 import User from '#models/user'
 import InventoryService from '#services/inventory_service'
 import AddressService from '#services/address_service'
+import HttpException from '#exceptions/http_exception'
 
 export default class OrderService {
   private inventoryService = new InventoryService()
@@ -121,9 +122,10 @@ export default class OrderService {
         const calculatedInCents = Math.round(orderTotalGross * 100)
 
         if (calculatedInCents !== expectedAmountInCents) {
-          throw new Error(
-            `Security Mismatch: Cart total ($${orderTotalGross.toFixed(2)}) does not match paid amount.`
-          )
+          throw new HttpException({
+            message: `Security Mismatch: Cart total ($${orderTotalGross.toFixed(2)}) does not match paid amount.`,
+            status: 400,
+          })
         }
       }
 

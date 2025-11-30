@@ -2,10 +2,11 @@ import { HttpContext } from '@adonisjs/core/http'
 import stripe from 'stripe'
 import env from '#start/env'
 import Product from '#models/product'
+import HttpException from '#exceptions/http_exception'
 
 // Initialize Stripe
 const stripeClient = new stripe(env.get('STRIPE_SECRET_KEY'), {
-  apiVersion: '2025-11-17.clover',
+  apiVersion: '2025-11-17.clover', // Note: Ensure this API version is correct for your stripe-node version
 })
 
 export default class PaymentController {
@@ -14,7 +15,7 @@ export default class PaymentController {
     const { items } = request.body()
 
     if (!items || !Array.isArray(items) || items.length === 0) {
-      return response.badRequest({ message: 'Cart is empty' })
+      throw new HttpException({ message: 'Cart is empty', status: 400 })
     }
 
     try {
@@ -33,15 +34,18 @@ export default class PaymentController {
 
         // Security Check 1: Does product exist?
         if (!product) {
-          // REFACTOR: Return directly instead of throwing
-          return response.badRequest({ message: `Product ID ${item.id} unavailable.` })
+          throw new HttpException({
+            message: `Product ID ${item.id} unavailable.`,
+            status: 400,
+          })
         }
 
         // Security Check 2: Is there enough stock? (Prevent overselling)
         if (product.stock < item.quantity) {
-          // REFACTOR: Return directly instead of throwing
-          return response.badRequest({
-            message: `Insufficient stock for ${product.name}. Available: ${product.stock}`
+          throw new HttpException({
+            message: `Insufficient stock for ${product.name}. Available: ${product.stock}`,
+            code: 'E_INSUFFICIENT_STOCK',
+            status: 400,
           })
         }
 
@@ -58,12 +62,13 @@ export default class PaymentController {
 
       // Minimum charge check (Stripe requires usually > $0.50)
       if (amountInCents < 50) {
-        // REFACTOR: Return directly
-        return response.badRequest({ message: 'Amount too low to process' })
+        throw new HttpException({
+          message: 'Amount too low to process',
+          status: 400,
+        })
       }
 
       // 6. Create the PaymentIntent
-      // This call to Stripe might fail (network, api key), so it stays in the try block
       const paymentIntent = await stripeClient.paymentIntents.create({
         amount: amountInCents,
         currency: 'eur',
@@ -81,12 +86,15 @@ export default class PaymentController {
         serverCalculatedTotal: calculatedTotal,
       })
     } catch (error) {
-      // Log the full error internally for debugging
-      console.error('Payment Intent Error:', error)
+      // IMPORTANT: If we threw a specific HttpException above, re-throw it so Adonis handles it.
+      if (error instanceof HttpException) {
+        throw error
+      }
 
-      // SECURITY: Return a generic message to the client to avoid exposing DB/Internal details
-      return response.badRequest({
-        message: 'Unable to initialize payment. Please contact support.'
+      // For unexpected errors (DB connection, Stripe API down), throw a generic 400/500
+      throw new HttpException({
+        message: 'Unable to initialize payment. Please contact support.',
+        status: 400, // or 500 depending on preference
       })
     }
   }

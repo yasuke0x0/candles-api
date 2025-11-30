@@ -2,6 +2,7 @@ import db from '@adonisjs/lucid/services/db'
 import Product from '#models/product'
 import InventoryMovement from '#models/inventory_movement'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import HttpException from '#exceptions/http_exception'
 
 export default class InventoryService {
   /**
@@ -32,9 +33,11 @@ export default class InventoryService {
       const newStock = product.stock + quantityDelta
 
       if (newStock < 0) {
-        throw new Error(
-          `Insufficient stock for Product #${productId} (${product.name}). Current: ${product.stock}, Requested: ${Math.abs(quantityDelta)}`
-        )
+        throw new HttpException({
+          message: `Insufficient stock for Product #${productId} (${product.name}). Current: ${product.stock}, Requested: ${Math.abs(quantityDelta)}`,
+          status: 400,
+          code: 'E_INSUFFICIENT_STOCK',
+        })
       }
 
       // 3. Update Product Cache
