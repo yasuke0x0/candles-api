@@ -9,21 +9,13 @@ export default class Order extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
+  // --- RELATIONSHIPS ---
+
   @column()
   declare userId: number
 
-  @column()
-  declare status:
-    | 'canceled'
-    | 'created'
-    | 'partially_funded'
-    | 'payment_failed'
-    | 'processing'
-    | 'requires_action'
-    | 'succeeded'
-    | 'READY_TO_SHIP'
-    | 'SHIPPED'
-    | string
+  @belongsTo(() => User)
+  declare user: BelongsTo<typeof User>
 
   @column()
   declare shippingAddressId: number
@@ -41,33 +33,54 @@ export default class Order extends BaseModel {
   })
   declare billingAddress: BelongsTo<typeof Address>
 
-  // --- FINANCIAL BREAKDOWN ---
+  @hasMany(() => OrderItem)
+  declare items: HasMany<typeof OrderItem>
+
+  // --- FINANCIAL DATA ---
+
+  // Grand Total (What the customer actually paid)
+  // Formula: amountWithoutVat + vatAmount + shippingAmount - totalDiscount (if discount is applied after VAT)
+  // Usually, totalAmount is the final charge.
   @column()
-  declare totalAmount: number // Grand Total (Net + VAT + Shipping)
+  declare totalAmount: number
+
+  // Subtotal before tax
+  @column()
+  declare amountWithoutVat: number
+
+  // Total Tax
+  @column()
+  declare vatAmount: number
+
+  // Shipping Cost
+  @column()
+  declare shippingAmount: number
+
+  // Total Discount Applied
+  @column()
+  declare totalDiscount: number
+
+  // --- META DATA ---
 
   @column()
-  declare amountWithoutVat: number // Subtotal Net
-
-  @column()
-  declare vatAmount: number // Total Tax
-
-  @column()
-  declare shippingAmount: number // Shipping Cost
-
-  // ---------------------------
+  declare status:
+    | 'created' // Initial state
+    | 'processing' // Payment confirmed
+    | 'ready_to_ship' // Warehouse processing
+    | 'shipped' // Handed to carrier
+    | 'delivered' // Done
+    | 'canceled' // Stopped
+    | 'refunded' // Money returned
+    | string
 
   @column()
   declare paymentIntentId: string | null
+
+  // --- TIMESTAMPS ---
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
-
-  @belongsTo(() => User)
-  declare user: BelongsTo<typeof User>
-
-  @hasMany(() => OrderItem)
-  declare items: HasMany<typeof OrderItem>
 }

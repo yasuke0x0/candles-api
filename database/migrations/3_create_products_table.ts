@@ -13,6 +13,9 @@ export default class extends BaseSchema {
       table.string('image').nullable()
       table.string('burn_time').nullable()
       table.boolean('is_new').defaultTo(false)
+
+      // JSON column for Scent Notes
+      // MySQL/PostgreSQL support native JSON.
       table.json('scent_notes').nullable()
 
       // Inventory
@@ -23,10 +26,10 @@ export default class extends BaseSchema {
       table.decimal('price', 12, 2).notNullable()
 
       // VAT Details
-      table.decimal('vat_rate', 10, 2).defaultTo(20.00).notNullable() // e.g., 20.00%
+      table.decimal('vat_rate', 10, 2).defaultTo(20.0).notNullable() // e.g., 20.00%
 
       // Calculated Price without VAT (Net)
-      // We store this to avoid rounding errors during runtime calculations
+      // Useful for accounting/reporting. Stored to avoid runtime rounding errors.
       table.decimal('price_net', 12, 2).nullable()
 
       table.timestamp('created_at')

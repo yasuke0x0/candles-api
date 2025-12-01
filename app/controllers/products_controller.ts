@@ -7,8 +7,14 @@ export default class ProductsController {
    * GET /products
    */
   public async index({ response }: HttpContext) {
-    // Optional: Hide out-of-stock items if desired, or let frontend handle it
-    const products = await Product.all()
+    // FIX: Preload discounts so 'currentPrice' is calculated correctly
+    const products = await Product.query()
+      .preload('discounts', (query) => {
+        // Optimization: Only load active discounts
+        query.where('is_active', true)
+      })
+      .orderBy('name', 'asc')
+
     return response.ok(products)
   }
 
@@ -18,7 +24,13 @@ export default class ProductsController {
    */
   public async show({ params, response }: HttpContext) {
     try {
-      const product = await Product.findOrFail(params.id)
+      const product = await Product.query()
+        .where('id', params.id)
+        .preload('discounts', (query) => {
+          query.where('is_active', true)
+        })
+        .firstOrFail()
+
       return response.ok(product)
     } catch (error) {
       return response.notFound({ message: 'Product not found' })
@@ -122,7 +134,9 @@ export default class ProductsController {
       },
     ]
 
-    await Product.createMany(productsData)
+    // Cast to any to avoid strict typing issues during rapid prototyping seed
+    await Product.createMany(productsData as any[])
+
     return response.created({ message: 'Products seeded successfully' })
   }
 }

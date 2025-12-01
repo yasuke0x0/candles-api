@@ -6,7 +6,7 @@ import HttpException from '#exceptions/http_exception'
 
 // Initialize Stripe
 const stripeClient = new stripe(env.get('STRIPE_SECRET_KEY'), {
-  apiVersion: '2025-11-17.clover', // Note: Ensure this API version is correct for your stripe-node version
+  apiVersion: '2025-11-17.clover',
 })
 
 export default class PaymentController {
@@ -21,7 +21,9 @@ export default class PaymentController {
     try {
       // 2. Fetch the "Source of Truth" from Database
       const productIds = items.map((item: any) => item.id)
-      const dbProducts = await Product.query().whereIn('id', productIds)
+
+      // FIX: Preload discounts so 'currentPrice' is accurate
+      const dbProducts = await Product.query().whereIn('id', productIds).preload('discounts')
 
       // Create a map for fast lookup: id -> Product
       const productMap = new Map(dbProducts.map((p) => [p.id, p]))
@@ -49,8 +51,8 @@ export default class PaymentController {
           })
         }
 
-        // Security Check 3: Use Database Price * Quantity
-        calculatedTotal += Number(product.price) * item.quantity
+        // Security Check 3: Use Discounted Price * Quantity
+        calculatedTotal += Number(product.currentPrice) * item.quantity
       }
 
       // 4. Add Shipping & Taxes (Server-side logic)
@@ -86,15 +88,15 @@ export default class PaymentController {
         serverCalculatedTotal: calculatedTotal,
       })
     } catch (error) {
-      // IMPORTANT: If we threw a specific HttpException above, re-throw it so Adonis handles it.
       if (error instanceof HttpException) {
         throw error
       }
 
-      // For unexpected errors (DB connection, Stripe API down), throw a generic 400/500
+      console.error('Payment Intent Error:', error)
+
       throw new HttpException({
         message: 'Unable to initialize payment. Please contact support.',
-        status: 400, // or 500 depending on preference
+        status: 400,
       })
     }
   }

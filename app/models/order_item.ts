@@ -1,8 +1,8 @@
 import { DateTime } from 'luxon'
-import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
+import { BaseModel, column, belongsTo } from '@adonisjs/lucid/orm'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
-import Order from '#models/order'
-import Product from '#models/product'
+import Order from './order.js'
+import Product from './product.js'
 
 export default class OrderItem extends BaseModel {
   @column({ isPrimary: true })
@@ -38,9 +38,17 @@ export default class OrderItem extends BaseModel {
   @column()
   declare vatAmount: number
 
-  // Total Amount (Net + VAT) for this line
+  // Total Amount (Net + VAT - Discount) for this line
   @column()
   declare totalPrice: number
+
+  // --- DISCOUNT SNAPSHOTS ---
+
+  @column()
+  declare discountAmount: number // e.g. 5.00
+
+  @column()
+  declare discountDescription: string | null // e.g. "Summer Sale 10%"
 
   // -------------------------
 

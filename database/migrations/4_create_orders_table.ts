@@ -11,12 +11,14 @@ export default class extends BaseSchema {
       table.integer('user_id').unsigned().references('users.id').onDelete('CASCADE').notNullable()
 
       // Address Links
+      // We use 'RESTRICT' on delete because we never want to lose the address history of an order.
       table
         .integer('shipping_address_id')
         .unsigned()
         .references('addresses.id')
         .onDelete('RESTRICT')
         .notNullable()
+
       table
         .integer('billing_address_id')
         .unsigned()
@@ -26,20 +28,26 @@ export default class extends BaseSchema {
 
       // --- FINANCIAL BREAKDOWN ---
       // 1. Net Amount (Price of items before tax)
-      table.decimal('amount_without_vat', 10, 2).notNullable().defaultTo(0)
+      table.decimal('amount_without_vat', 12, 2).notNullable().defaultTo(0)
 
       // 2. VAT Amount (Total tax calculated)
-      table.decimal('vat_amount', 10, 2).notNullable().defaultTo(0)
+      table.decimal('vat_amount', 12, 2).notNullable().defaultTo(0)
 
       // 3. Shipping Cost
-      table.decimal('shipping_amount', 10, 2).notNullable().defaultTo(0)
+      table.decimal('shipping_amount', 12, 2).notNullable().defaultTo(0)
 
-      // 4. Total Amount (Net + VAT + Shipping) - Final charge to customer
-      table.decimal('total_amount', 10, 2).notNullable()
+      // 4. Total Discount (Sum of all discounts applied)
+      table.decimal('total_discount', 12, 2).notNullable().defaultTo(0)
+
+      // 5. Total Amount (Net + VAT + Shipping - Discount) - Final charge to customer
+      table.decimal('total_amount', 12, 2).notNullable()
 
       // ---------------------------
 
-      table.string('status').defaultTo('pending')
+      // Status
+      table.string('status').defaultTo('created').notNullable()
+
+      // Stripe Payment ID for reconciliation/refunds
       table.string('payment_intent_id').nullable()
 
       table.timestamp('created_at')
