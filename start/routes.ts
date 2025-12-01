@@ -8,18 +8,20 @@ const AdminInventoryController = () => import('#controllers/admin_inventory_cont
 const PaymentController = () => import('#controllers/payment_controller')
 const StripeWebhookController = () => import('#controllers/stripe_webhook_controller')
 const UsersController = () => import('#controllers/users_controller')
+const CouponsController = () => import('#controllers/coupons_controller')
 
 router
   .group(() => {
-    // Health Check
-    router.get('/', async () => {
-      return { hello: 'world' }
-    })
+    // TMP Seed
+    router.post('/products/seed', [ProductsController, 'seed']) // Helper to populate DB
+    router.post('/coupons/seed', [CouponsController, 'seed'])
+
+    // Coupons
+    router.post('/coupons/check', [CouponsController, 'check'])
 
     // Product Routes
     router.get('/products', [ProductsController, 'index'])
     router.get('/products/:id', [ProductsController, 'show'])
-    router.post('/products/seed', [ProductsController, 'seed']) // Helper to populate DB
 
     // Order Routes
     router.post('/orders', [OrdersController, 'store'])

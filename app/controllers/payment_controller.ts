@@ -2,39 +2,37 @@ import { HttpContext } from '@adonisjs/core/http'
 import stripe from 'stripe'
 import env from '#start/env'
 import Product from '#models/product'
+import Coupon from '#models/coupon' // Import the Coupon model
 import HttpException from '#exceptions/http_exception'
 
 // Initialize Stripe
 const stripeClient = new stripe(env.get('STRIPE_SECRET_KEY'), {
-  apiVersion: '2025-11-17.clover',
+  apiVersion: '2025-11-17.clover', // Ensure this matches your stripe version
 })
 
 export default class PaymentController {
-  public async createIntent({ request, response }: HttpContext) {
-    // 1. Get only the necessary identification data from client
-    const { items } = request.body()
+  public async createIntent({ request, response, auth }: HttpContext) {
+    // 1. Get items AND couponCode from client
+    const { items, couponCode } = request.body()
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       throw new HttpException({ message: 'Cart is empty', status: 400 })
     }
 
     try {
-      // 2. Fetch the "Source of Truth" from Database
+      // 2. Fetch Products (Source of Truth)
       const productIds = items.map((item: any) => item.id)
 
-      // FIX: Preload discounts so 'currentPrice' is accurate
+      // Preload product discounts to get accurate currentPrice
       const dbProducts = await Product.query().whereIn('id', productIds).preload('discounts')
-
-      // Create a map for fast lookup: id -> Product
       const productMap = new Map(dbProducts.map((p) => [p.id, p]))
 
-      let calculatedTotal = 0
+      let subtotal = 0
 
-      // 3. Iterate and Calculate Total on Server
+      // 3. Calculate Subtotal (Pre-coupon, Pre-shipping)
       for (const item of items) {
         const product = productMap.get(item.id)
 
-        // Security Check 1: Does product exist?
         if (!product) {
           throw new HttpException({
             message: `Product ID ${item.id} unavailable.`,
@@ -42,7 +40,6 @@ export default class PaymentController {
           })
         }
 
-        // Security Check 2: Is there enough stock? (Prevent overselling)
         if (product.stock < item.quantity) {
           throw new HttpException({
             message: `Insufficient stock for ${product.name}. Available: ${product.stock}`,
@@ -51,26 +48,61 @@ export default class PaymentController {
           })
         }
 
-        // Security Check 3: Use Discounted Price * Quantity
-        calculatedTotal += Number(product.currentPrice) * item.quantity
+        // Use the dynamic currentPrice (which includes product-level discounts)
+        subtotal += Number(product.currentPrice) * item.quantity
       }
 
-      // 4. Add Shipping & Taxes (Server-side logic)
-      const SHIPPING_COST = 15.0
-      calculatedTotal += SHIPPING_COST
+      // 4. Handle Coupon Logic
+      let couponDiscount = 0
+      let activeCoupon: Coupon | null = null
 
-      // 5. Convert to Cents (Stripe requires integers)
-      const amountInCents = Math.round(calculatedTotal * 100)
+      if (couponCode) {
+        // Find the coupon
+        activeCoupon = await Coupon.findBy('code', couponCode)
 
-      // Minimum charge check (Stripe requires usually > $0.50)
+        if (!activeCoupon) {
+          throw new HttpException({
+            message: `Coupon '${couponCode}' not found.`,
+            status: 400,
+          })
+        }
+
+        // Check validity (User ID is optional for guests)
+        const user = auth.user
+        const validation = await activeCoupon.isValidFor(user?.id || null, subtotal)
+
+        if (!validation.valid) {
+          throw new HttpException({
+            message: `Coupon invalid: ${validation.reason}`,
+            status: 400,
+          })
+        }
+
+        // Calculate the actual discount amount
+        couponDiscount = activeCoupon.calculateDiscount(subtotal)
+      }
+
+      // 5. Final Calculation
+      const SHIPPING_COST = 15.0 // You might want to make this dynamic later
+
+      // Subtotal - Coupon + Shipping
+      let finalTotal = subtotal - couponDiscount + SHIPPING_COST
+
+      // Safety check: Total cannot be negative
+      if (finalTotal < 0) finalTotal = 0
+
+      // 6. Convert to Cents for Stripe
+      const amountInCents = Math.round(finalTotal * 100)
+
+      // Stripe minimum charge check (approx $0.50 USD/EUR)
       if (amountInCents < 50) {
         throw new HttpException({
-          message: 'Amount too low to process',
+          message: 'Total amount is too low to process payment.',
           status: 400,
         })
       }
 
-      // 6. Create the PaymentIntent
+      // 7. Create PaymentIntent with Metadata
       const paymentIntent = await stripeClient.paymentIntents.create({
         amount: amountInCents,
         currency: 'eur',
@@ -79,14 +111,20 @@ export default class PaymentController {
         },
         metadata: {
           product_ids: productIds.join(','),
+          coupon_id: activeCoupon ? activeCoupon.id.toString() : '',
+          coupon_code: activeCoupon ? activeCoupon.code : '',
+          original_subtotal: subtotal.toFixed(2),
+          discount_amount: couponDiscount.toFixed(2),
         },
       })
 
-      // 7. Send the secure Client Secret
+      // 8. Return result to Client
       return response.ok({
         clientSecret: paymentIntent.client_secret,
-        serverCalculatedTotal: calculatedTotal,
+        serverCalculatedTotal: finalTotal,
+        discountApplied: couponDiscount,
       })
+
     } catch (error) {
       if (error instanceof HttpException) {
         throw error

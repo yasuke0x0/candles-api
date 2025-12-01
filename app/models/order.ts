@@ -4,6 +4,7 @@ import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import User from '#models/user'
 import OrderItem from '#models/order_item'
 import Address from '#models/address'
+import Coupon from '#models/coupon'
 
 export default class Order extends BaseModel {
   @column({ isPrimary: true })
@@ -64,17 +65,30 @@ export default class Order extends BaseModel {
 
   @column()
   declare status:
-    | 'created' // Initial state
-    | 'processing' // Payment confirmed
-    | 'ready_to_ship' // Warehouse processing
-    | 'shipped' // Handed to carrier
-    | 'delivered' // Done
-    | 'canceled' // Stopped
-    | 'refunded' // Money returned
+    | 'canceled'
+    | 'created'
+    | 'partially_funded'
+    | 'payment_failed'
+    | 'processing'
+    | 'requires_action'
+    | 'succeeded'
+    | 'READY_TO_SHIP'
+    | 'SHIPPED'
     | string
 
   @column()
   declare paymentIntentId: string | null
+
+  // --- COUPON FIELDS ---
+  @column()
+  declare couponId: number | null
+
+  @belongsTo(() => Coupon)
+  declare coupon: BelongsTo<typeof Coupon>
+
+  // Stores specifically how much the coupon removed (separate from product discounts)
+  @column()
+  declare couponDiscountAmount: number
 
   // --- TIMESTAMPS ---
 

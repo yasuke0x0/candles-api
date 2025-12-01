@@ -36,12 +36,15 @@ export default class OrdersController {
         }
       }
 
+      // --- CHANGE HERE: Added 'couponCode' to allowed fields ---
       const payload = request.only([
         'items',
         'shippingAddress',
         'billingAddress',
         'paymentIntentId',
+        'couponCode',
       ])
+
       let stripeAmount: number | undefined
 
       // --- SECURITY: Verify Stripe Payment ---
@@ -60,7 +63,6 @@ export default class OrdersController {
           // C. Capture the amount paid (in cents) to verify against cart later
           stripeAmount = paymentIntent.amount
         } catch (err) {
-          // If the error is already an HttpException (thrown above), re-throw it
           if (err instanceof HttpException) {
             throw err
           }
@@ -78,24 +80,17 @@ export default class OrdersController {
       }
       // ---------------------------------------
 
-      // Pass the stripeAmount to the service for final verification
-      // The Service will compare this amount against the database-calculated total
       const order = await this.orderService.createOrder(user!, payload, stripeAmount)
 
       return response.created({ message: 'Order placed successfully', orderId: order.id })
     } catch (error) {
-      // If it's our custom HttpException, re-throw it so Adonis's exception handler picks it up
       if (error instanceof HttpException) {
         throw error
       }
 
-      // For unexpected errors, you might want to log them and throw a generic 500 or let the global handler catch it
-      // Here, we maintain the behavior of returning a bad request for service-level errors if they aren't typed yet,
-      // or you can wrap them in HttpException as well.
-      // Assuming orderService might throw generic errors for now:
       throw new HttpException({
         message: error.message || 'An unexpected error occurred while placing the order.',
-        status: 400, // Or 500 based on the error type
+        status: 400,
       })
     }
   }

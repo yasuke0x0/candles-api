@@ -35,13 +35,14 @@ export default class Product extends BaseModel {
   // --- PRICING & VAT ---
 
   // The Base/Gross Price (Reference price)
-  @column()
+  // FIX: Use 'consume' to convert the DB string ("30.00") to a JS Number (30.00)
+  @column({ consume: (value) => Number(value) })
   declare price: number
 
-  @column()
+  @column({ consume: (value) => Number(value) })
   declare vatRate: number
 
-  @column()
+  @column({ consume: (value) => Number(value) })
   declare priceNet: number
 
   // --- RELATIONS ---
@@ -71,7 +72,6 @@ export default class Product extends BaseModel {
     const now = DateTime.now()
 
     // Find the single best applicable discount
-    // You could sort this to find the highest value if you allow multiple
     const activeDiscount = this.discounts.find((d) => {
       if (!d.isActive) return false
       if (d.startsAt && d.startsAt > now) return false
@@ -93,12 +93,6 @@ export default class Product extends BaseModel {
 
     // Return rounded to 2 decimal places
     return Number(finalPrice.toFixed(2))
-  }
-
-  // Formatted string for UI (e.g. "€25.00")
-  @computed()
-  get formattedPrice() {
-    return `€${this.currentPrice.toFixed(2)}`
   }
 
   // --- HOOKS ---
@@ -126,4 +120,9 @@ export default class Product extends BaseModel {
     consume: (value: any) => (typeof value === 'string' ? JSON.parse(value) : value),
   })
   declare scentNotes: string[]
+
+  @computed()
+  get formattedPrice() {
+    return `€${this.currentPrice.toFixed(2)}`
+  }
 }
