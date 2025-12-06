@@ -19,6 +19,11 @@ export default class extends BaseSeeder {
         burnTime: '45-50 hours',
         isNew: true,
         stock: 50,
+        // Dimensions (cm) & Weight (kg)
+        length: 10,
+        width: 10,
+        height: 12,
+        weight: 0.6,
       },
       {
         name: 'Sage & Sea Salt',
@@ -33,6 +38,11 @@ export default class extends BaseSeeder {
         burnTime: '40-45 hours',
         isNew: false,
         stock: 50,
+        // Dimensions (cm) & Weight (kg)
+        length: 9,
+        width: 9,
+        height: 10,
+        weight: 0.5,
       },
       {
         name: 'Lavender Haze',
@@ -47,6 +57,11 @@ export default class extends BaseSeeder {
         burnTime: '45-50 hours',
         isNew: false,
         stock: 50,
+        // Dimensions (cm) & Weight (kg)
+        length: 9,
+        width: 9,
+        height: 11,
+        weight: 0.55,
       },
       {
         name: 'Cedar & Tobacco',
@@ -61,6 +76,11 @@ export default class extends BaseSeeder {
         burnTime: '50-55 hours',
         isNew: false,
         stock: 50,
+        // Dimensions (cm) & Weight (kg)
+        length: 10,
+        width: 10,
+        height: 12,
+        weight: 0.65,
       },
       {
         name: 'Golden Pear',
@@ -75,6 +95,11 @@ export default class extends BaseSeeder {
         burnTime: '40-45 hours',
         isNew: false,
         stock: 50,
+        // Dimensions (cm) & Weight (kg)
+        length: 8,
+        width: 8,
+        height: 9,
+        weight: 0.45,
       },
       {
         name: 'White Tea & Ginger',
@@ -88,6 +113,11 @@ export default class extends BaseSeeder {
         burnTime: '45-50 hours',
         isNew: false,
         stock: 50,
+        // Dimensions (cm) & Weight (kg)
+        length: 9,
+        width: 9,
+        height: 11,
+        weight: 0.5,
       },
     ])
   }

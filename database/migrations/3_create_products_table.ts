@@ -28,6 +28,11 @@ export default class extends BaseSchema {
       // VAT Details
       table.decimal('vat_rate', 10, 2).defaultTo(20.0).notNullable() // e.g., 20.00%
 
+      table.decimal('length', 8, 2).defaultTo(0) // cm
+      table.decimal('width', 8, 2).defaultTo(0) // cm
+      table.decimal('height', 8, 2).defaultTo(0) // cm
+      table.decimal('weight', 8, 2).defaultTo(0) // g
+
       // Calculated Price without VAT (Net)
       // Useful for accounting/reporting. Stored to avoid runtime rounding errors.
       table.decimal('price_net', 12, 2).nullable()

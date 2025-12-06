@@ -34,8 +34,6 @@ export default class Product extends BaseModel {
 
   // --- PRICING & VAT ---
 
-  // The Base/Gross Price (Reference price)
-  // FIX: Use 'consume' to convert the DB string ("30.00") to a JS Number (30.00)
   @column({ consume: (value) => Number(value) })
   declare price: number
 
@@ -44,6 +42,20 @@ export default class Product extends BaseModel {
 
   @column({ consume: (value) => Number(value) })
   declare priceNet: number
+
+  // --- DIMENSIONS & SHIPPING (Used by PackagingService) ---
+
+  @column({ consume: (value) => Number(value) })
+  declare weight: number
+
+  @column({ consume: (value) => Number(value) })
+  declare length: number
+
+  @column({ consume: (value) => Number(value) })
+  declare width: number
+
+  @column({ consume: (value) => Number(value) })
+  declare height: number
 
   // --- RELATIONS ---
 
@@ -59,45 +71,46 @@ export default class Product extends BaseModel {
 
   /**
    * Calculates the real price the user should pay.
-   * Checks for active discounts that are valid right now.
-   * REQUIRES: .preload('discounts') to be called in the controller.
+   * Checks for active discounts and applies the BEST one (Lowest Price).
+   * REQUIRES: .preload('discounts')
    */
   @computed()
   get currentPrice() {
-    // If discounts weren't preloaded or there are none, return base price
     if (!this.discounts || this.discounts.length === 0) {
       return Number(this.price)
     }
 
     const now = DateTime.now()
+    const basePrice = Number(this.price)
 
-    // Find the single best applicable discount
-    const activeDiscount = this.discounts.find((d) => {
+    // 1. Filter for ALL valid discounts
+    const validDiscounts = this.discounts.filter((d) => {
       if (!d.isActive) return false
       if (d.startsAt && d.startsAt > now) return false
       if (d.endsAt && d.endsAt < now) return false
       return true
     })
 
-    if (!activeDiscount) return Number(this.price)
+    if (validDiscounts.length === 0) return basePrice
 
-    let finalPrice = Number(this.price)
+    // 2. Calculate potential price for each discount
+    const potentialPrices = validDiscounts.map((d) => {
+      if (d.type === 'PERCENTAGE') {
+        return basePrice * (1 - d.value / 100)
+      } else {
+        // FIXED amount off
+        return Math.max(0, basePrice - d.value)
+      }
+    })
 
-    if (activeDiscount.type === 'PERCENTAGE') {
-      // Example: 20% off
-      finalPrice = finalPrice * (1 - activeDiscount.value / 100)
-    } else if (activeDiscount.type === 'FIXED') {
-      // Example: 10€ off
-      finalPrice = Math.max(0, finalPrice - activeDiscount.value)
-    }
+    // 3. Select the Lowest Price (Best for Customer)
+    const bestPrice = Math.min(...potentialPrices)
 
-    // Return rounded to 2 decimal places
-    return Number(finalPrice.toFixed(2))
+    return Number(bestPrice.toFixed(2))
   }
 
   // --- HOOKS ---
 
-  // Auto-calculate Net Price (Price without VAT) before saving
   @beforeSave()
   static async calculateNetPrice(product: Product) {
     if (product.price) {

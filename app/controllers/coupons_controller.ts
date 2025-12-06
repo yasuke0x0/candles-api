@@ -1,6 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Coupon from '#models/coupon'
-import { DateTime } from 'luxon'
 
 export default class CouponsController {
   /**
@@ -53,59 +52,5 @@ export default class CouponsController {
       newTotal: Number((subtotal - discountAmount).toFixed(2)),
       message: 'Coupon applied successfully!',
     })
-  }
-
-  /**
-   * Endpoint: POST /coupons/seed
-   * Usage: Development only. Creates fixtures.
-   */
-  async seed({ response }: HttpContext) {
-    const now = DateTime.now()
-
-    // Using updateOrCreateMany to prevent duplicates if you run this twice
-    await Coupon.updateOrCreateMany('code', [
-      {
-        code: 'WELCOME10',
-        description: '10% off your first order',
-        type: 'PERCENTAGE',
-        value: 10,
-        isActive: true,
-        maxUsesPerUser: 1,
-      },
-      {
-        code: 'SAVE20',
-        description: '$20 off orders over $100',
-        type: 'FIXED',
-        value: 20,
-        minOrderAmount: 100, // Restriction
-        isActive: true,
-      },
-      {
-        code: 'SUMMER50',
-        description: '50% off - Limited to first 100 people',
-        type: 'PERCENTAGE',
-        value: 50,
-        maxUses: 100,
-        currentUses: 0,
-        isActive: true,
-      },
-      {
-        code: 'EXPIRED',
-        description: 'This coupon is old',
-        type: 'FIXED',
-        value: 5,
-        isActive: true,
-        endsAt: now.minus({ days: 1 }), // Ended yesterday
-      },
-      {
-        code: 'VIPSECRET',
-        description: 'Inactive coupon',
-        type: 'PERCENTAGE',
-        value: 30,
-        isActive: false, // Manually disabled
-      },
-    ])
-
-    return response.created({ message: 'Coupon fixtures seeded successfully' })
   }
 }

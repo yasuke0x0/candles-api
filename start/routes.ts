@@ -9,12 +9,12 @@ const PaymentController = () => import('#controllers/payment_controller')
 const StripeWebhookController = () => import('#controllers/stripe_webhook_controller')
 const UsersController = () => import('#controllers/users_controller')
 const CouponsController = () => import('#controllers/coupons_controller')
+const ShippingController = () => import('#controllers/shipping_controller')
 
 router
   .group(() => {
-    // TMP Seed
-    router.post('/products/seed', [ProductsController, 'seed']) // Helper to populate DB
-    router.post('/coupons/seed', [CouponsController, 'seed'])
+    // Shipping
+    router.post('/shipping/rates', [ShippingController, 'rates'])
 
     // Coupons
     router.post('/coupons/check', [CouponsController, 'check'])
