@@ -2,25 +2,27 @@ import type { HttpContext } from '@adonisjs/core/http'
 import User from '#models/user'
 
 export default class AuthController {
-  /**
-   * POST /api/login
-   */
-  async login({ request, response }: HttpContext) {
+  public async login({ request, response }: HttpContext) {
     const { email, password } = request.only(['email', 'password'])
 
     try {
+      // 1. Verify Credentials
       const user = await User.verifyCredentials(email, password)
 
-      // Create a token
-      const token = await User.accessTokens.create(user)
+      // 2. Create Token
+      const token = await User.accessTokens.create(user, ['*'], {
+        expiresIn: '7 days',
+      })
 
+      // 3. Return user data explicitly
       return response.ok({
-        token: token,
+        token: token, // This is an object: { type: 'bearer', token: 'xyz...', ... }
         user: {
           id: user.id,
           email: user.email,
           firstName: user.firstName,
-          roles: user.roles, // Important for frontend to know if they are admin
+          lastName: user.lastName,
+          roles: user.roles, // Used by frontend for guard
         },
       })
     } catch (error) {

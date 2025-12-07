@@ -10,50 +10,53 @@ const StripeWebhookController = () => import('#controllers/stripe_webhook_contro
 const UsersController = () => import('#controllers/users_controller')
 const CouponsController = () => import('#controllers/coupons_controller')
 const ShippingController = () => import('#controllers/shipping_controller')
-const AuthController = () => import('#controllers/auth_controller') // You likely need this for login
+const AuthController = () => import('#controllers/auth_controller')
 
 router
   .group(() => {
     // --- PUBLIC ROUTES ---
-
-    // Auth
     router.post('/login', [AuthController, 'login'])
-
-    // Shipping & Coupons
     router.post('/shipping/rates', [ShippingController, 'rates'])
+
+    // Public Coupon Check (for Cart)
     router.post('/coupons/check', [CouponsController, 'check'])
 
-    // Products (Read-Only is Public)
     router.get('/products', [ProductsController, 'index'])
     router.get('/products/:id', [ProductsController, 'show'])
-
-    // Orders & Payment
     router.post('/orders', [OrdersController, 'store'])
     router.post('/create-payment-intent', [PaymentController, 'createIntent'])
     router.post('/stripe-webhook', [StripeWebhookController, 'handle'])
     router.post('/users/save-contact', [UsersController, 'saveContact'])
 
-    // --- PROTECTED ROUTES (Any Logged In User) ---
+    // --- PROTECTED ROUTES ---
     router
       .group(() => {
-        router.get('/auth/me', [AuthController, 'me']) // Get current user info
+        router.get('/auth/me', [AuthController, 'me'])
       })
       .use(middleware.auth())
 
     // --- ADMIN ROUTES (Super Admin Only) ---
     router
       .group(() => {
-        // Product Management (CRUD)
-        // These map to the methods we added to ProductsController
+        // Products
         router.post('/products', [ProductsController, 'store'])
         router.put('/products/:id', [ProductsController, 'update'])
         router.delete('/products/:id', [ProductsController, 'destroy'])
 
+        // Product Discounts (Renamed method to avoid conflict)
+        router.get('/discounts', [CouponsController, 'listDiscounts'])
+
+        // Coupons CRUD (Cart Codes)
+        router.get('/coupons', [CouponsController, 'index'])
+        router.post('/coupons', [CouponsController, 'store'])
+        router.put('/coupons/:id', [CouponsController, 'update'])
+        router.delete('/coupons/:id', [CouponsController, 'destroy'])
+
         // Inventory
         router.post('/inventory/adjust', [AdminInventoryController, 'adjust'])
       })
-      .use(middleware.auth()) // Step 1: Log in (Populates ctx.auth.user - Must be logged in)
-      .use(middleware.admin()) // Step 2: Check Role (Reads ctx.auth.user - Must be admin)
+      .use(middleware.auth())
+      .use(middleware.admin())
   })
   .prefix('api')
 
