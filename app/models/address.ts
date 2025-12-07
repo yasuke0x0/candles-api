@@ -37,6 +37,13 @@ export default class Address extends BaseModel {
   @column()
   declare type: 'SHIPPING' | 'BILLING'
 
+  // --- NEW FIELDS ---
+  @column()
+  declare phonePrefix: string | null
+
+  @column()
+  declare phone: string | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

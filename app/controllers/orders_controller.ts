@@ -1,97 +1,143 @@
 import { HttpContext } from '@adonisjs/core/http'
-import OrderService from '#services/order_service'
-import User from '#models/user'
-import string from '@adonisjs/core/helpers/string'
-import stripe from 'stripe'
-import env from '#start/env'
+import Order from '#models/order'
 import HttpException from '#exceptions/http_exception'
 
-const stripeClient = new stripe(env.get('STRIPE_SECRET_KEY'))
+export default class AdminOrdersController {
+  /**
+   * GET /api/admin/orders
+   * Lists all orders with pagination and optional status filter.
+   * Query Params: ?page=1 & ?limit=20 & ?status=created & ?search=... & ?startDate=...
+   */
+  public async index({ request, response }: HttpContext) {
+    const page = request.input('page', 1)
+    // Cap maximum rows at 100
+    const limit = Math.min(request.input('limit', 20), 100)
 
-export default class OrdersController {
-  private orderService = new OrderService()
+    // Filters
+    const status = request.input('status')
+    const search = request.input('search')
+    const startDate = request.input('startDate')
+    const endDate = request.input('endDate')
 
-  public async store({ request, response, auth }: HttpContext) {
-    try {
-      // 1. Authenticated User Logic
-      let user: User | null = auth.user ?? null
+    const query = Order.query()
+      .preload('user') // Show who bought it
+      .preload('items') // Show item count
+      .preload('shippingAddress') // <--- Return full Shipping Object
+      .preload('billingAddress') // <--- Return full Billing Object
+      .orderBy('createdAt', 'desc') // Newest first
 
-      if (!user) {
-        const customer = request.only(['email', 'firstName', 'lastName'])
-        if (!customer.email || !customer.firstName || !customer.lastName) {
-          throw new HttpException({
-            message: 'Guest checkout requires contact details.',
-            status: 400,
+    // 1. Status Filter
+    if (status && status !== 'ALL') {
+      query.where('status', status)
+    }
+
+    // 2. Date Range Filter
+    if (startDate) {
+      query.where('createdAt', '>=', startDate)
+    }
+    if (endDate) {
+      // Create a date object for the end of the day
+      const endDateTime = new Date(endDate)
+      endDateTime.setHours(23, 59, 59, 999)
+      query.where('createdAt', '<=', endDateTime.toISOString())
+    }
+
+    // 3. Advanced Search Filter
+    if (search) {
+      // Remove '#' if present (e.g. search "#242" -> "242")
+      const idSearch = search.replace(/^#/, '')
+      const searchTerm = `%${search}%`
+
+      query.where((group) => {
+        // A. Search by Order ID (Exact or partial match on the number)
+        group.whereRaw('CAST(id AS CHAR) LIKE ?', [`%${idSearch}%`])
+
+        // B. Search inside User relation
+        group.orWhereHas('user', (userQuery) => {
+          userQuery.where((subQuery) => {
+            // 1. Email
+            subQuery.where('email', 'like', searchTerm)
+
+            // 2. First Name or Last Name individually
+            subQuery.orWhere('firstName', 'like', searchTerm)
+            subQuery.orWhere('lastName', 'like', searchTerm)
+
+            // 3. Full Name Combinations (First Last OR Last First)
+            // Note: Adjust 'first_name'/'last_name' if your DB columns are different
+            subQuery.orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [searchTerm])
+            subQuery.orWhereRaw("CONCAT(last_name, ' ', first_name) LIKE ?", [searchTerm])
           })
-        }
-        user = await User.findBy('email', customer.email)
-        if (!user) {
-          user = await User.create({
-            email: customer.email,
-            firstName: customer.firstName,
-            lastName: customer.lastName,
-            password: string.random(32),
-            roles: ['CUSTOMER'],
-          })
-        }
-      }
-
-      // --- CHANGE HERE: Added 'couponCode' to allowed fields ---
-      const payload = request.only([
-        'items',
-        'shippingAddress',
-        'billingAddress',
-        'paymentIntentId',
-        'couponCode',
-      ])
-
-      let stripeAmount: number | undefined
-
-      // --- SECURITY: Verify Stripe Payment ---
-      if (payload.paymentIntentId) {
-        try {
-          const paymentIntent = await stripeClient.paymentIntents.retrieve(payload.paymentIntentId)
-
-          // A. Ensure payment actually exists
-          if (!paymentIntent) {
-            throw new HttpException({
-              message: 'Payment intent does not exist',
-              status: 400,
-            })
-          }
-
-          // C. Capture the amount paid (in cents) to verify against cart later
-          stripeAmount = paymentIntent.amount
-        } catch (err) {
-          if (err instanceof HttpException) {
-            throw err
-          }
-          console.error('Stripe Verify Error:', err)
-          throw new HttpException({
-            message: 'Invalid Payment Intent ID',
-            status: 400,
-          })
-        }
-      } else {
-        throw new HttpException({
-          message: 'Payment ID is required',
-          status: 400,
         })
-      }
-      // ---------------------------------------
+      })
+    }
 
-      const order = await this.orderService.createOrder(user!, payload, stripeAmount)
+    const orders = await query.paginate(page, limit)
 
-      return response.created({ message: 'Order placed successfully', orderId: order.id })
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error
-      }
+    return response.ok(orders)
+  }
 
+  /**
+   * GET /api/admin/orders/:id
+   * Fetch full details for a single order.
+   */
+  public async show({ params, response }: HttpContext) {
+    const order = await Order.find(params.id)
+
+    if (!order) {
+      throw new HttpException({ message: 'Order not found', status: 404 })
+    }
+
+    // Preload everything needed for fulfillment
+    await order.load((loader) => {
+      loader.load('user')
+      loader.load('items', (itemQuery) => {
+        itemQuery.preload('product')
+      })
+      loader.load('shippingAddress')
+      loader.load('billingAddress')
+      loader.load('coupon')
+    })
+
+    return response.ok(order)
+  }
+
+  /**
+   * PUT /api/admin/orders/:id/status
+   * Update the order status.
+   */
+  public async updateStatus({ params, request, response }: HttpContext) {
+    const order = await Order.find(params.id)
+
+    if (!order) {
+      throw new HttpException({ message: 'Order not found', status: 404 })
+    }
+
+    const { status } = request.only(['status'])
+
+    const validStatuses = [
+      'created',
+      'processing',
+      'partially_funded',
+      'succeeded',
+      'READY_TO_SHIP',
+      'SHIPPED',
+      'canceled',
+      'requires_action',
+    ]
+
+    if (!status || !validStatuses.includes(status)) {
       throw new HttpException({
-        message: error.message || 'An unexpected error occurred while placing the order.',
+        message: `Invalid status. Allowed: ${validStatuses.join(', ')}`,
         status: 400,
       })
     }
+
+    order.status = status
+    await order.save()
+
+    return response.ok({
+      message: `Order #${order.id} updated to ${status}`,
+      order,
+    })
   }
 }

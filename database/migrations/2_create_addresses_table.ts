@@ -19,6 +19,10 @@ export default class extends BaseSchema {
       table.string('postal_code').notNullable()
       table.string('country').defaultTo('France')
 
+      // Phone Fields
+      table.string('phone_prefix').nullable()
+      table.string('phone').nullable()
+
       // Type: 'shipping', 'billing', or 'both'
       table.string('type').defaultTo('shipping')
 

@@ -1,4 +1,3 @@
-// app/controllers/admin_orders_controller.ts
 import { HttpContext } from '@adonisjs/core/http'
 import Order from '#models/order'
 import HttpException from '#exceptions/http_exception'
@@ -11,7 +10,8 @@ export default class AdminOrdersController {
    */
   public async index({ request, response }: HttpContext) {
     const page = request.input('page', 1)
-    const limit = request.input('limit', 20)
+    // Cap maximum rows at 100
+    const limit = Math.min(request.input('limit', 20), 100)
 
     // Filters
     const status = request.input('status')
@@ -22,6 +22,8 @@ export default class AdminOrdersController {
     const query = Order.query()
       .preload('user') // Show who bought it
       .preload('items') // Show item count
+      .preload('shippingAddress') // <--- Return full Shipping Object
+      .preload('billingAddress') // <--- Return full Billing Object
       .orderBy('createdAt', 'desc') // Newest first
 
     // 1. Status Filter
@@ -40,20 +42,31 @@ export default class AdminOrdersController {
       query.where('createdAt', '<=', endDateTime.toISOString())
     }
 
-    // 3. Search Filter (Order ID, Email, Name)
+    // 3. Advanced Search Filter
     if (search) {
+      // Remove '#' if present (e.g. search "#242" -> "242")
+      const idSearch = search.replace(/^#/, '')
       const searchTerm = `%${search}%`
 
       query.where((group) => {
-        // FIX: Use CAST(id AS CHAR) for MySQL compatibility
-        group.whereRaw('CAST(id AS CHAR) LIKE ?', [searchTerm])
+        // A. Search by Order ID (Exact or partial match on the number)
+        group.whereRaw('CAST(id AS CHAR) LIKE ?', [`%${idSearch}%`])
 
-        // Search inside User relation
+        // B. Search inside User relation
         group.orWhereHas('user', (userQuery) => {
-          userQuery
-            .where('email', 'like', searchTerm)
-            .orWhere('firstName', 'like', searchTerm)
-            .orWhere('lastName', 'like', searchTerm)
+          userQuery.where((subQuery) => {
+            // 1. Email
+            subQuery.where('email', 'like', searchTerm)
+
+            // 2. First Name or Last Name individually
+            subQuery.orWhere('firstName', 'like', searchTerm)
+            subQuery.orWhere('lastName', 'like', searchTerm)
+
+            // 3. Full Name Combinations (First Last OR Last First)
+            // Note: Adjust 'first_name'/'last_name' if your DB columns are different
+            subQuery.orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [searchTerm])
+            subQuery.orWhereRaw("CONCAT(last_name, ' ', first_name) LIKE ?", [searchTerm])
+          })
         })
       })
     }
