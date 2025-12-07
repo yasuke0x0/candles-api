@@ -3,7 +3,7 @@ import { middleware } from '#start/kernel'
 
 // Import Controllers lazily
 const ProductsController = () => import('#controllers/products_controller')
-const OrdersController = () => import('#controllers/orders_controller')
+const AdminProductsController = () => import('#controllers/admin_products_controller')
 const AdminInventoryController = () => import('#controllers/admin_inventory_controller')
 const PaymentController = () => import('#controllers/payment_controller')
 const StripeWebhookController = () => import('#controllers/stripe_webhook_controller')
@@ -12,6 +12,7 @@ const CouponsController = () => import('#controllers/coupons_controller')
 const ShippingController = () => import('#controllers/shipping_controller')
 const AuthController = () => import('#controllers/auth_controller')
 const AdminOrdersController = () => import('#controllers/admin_orders_controller')
+const OrdersController = () => import('#controllers/orders_controller')
 
 router
   .group(() => {
@@ -19,12 +20,13 @@ router
     router.post('/login', [AuthController, 'login'])
     router.post('/shipping/rates', [ShippingController, 'rates'])
 
+    router.post('/orders', [OrdersController, 'store'])
+
     // Public Coupon Check (for Cart)
     router.post('/coupons/check', [CouponsController, 'check'])
 
     router.get('/products', [ProductsController, 'index'])
     router.get('/products/:id', [ProductsController, 'show'])
-    router.post('/orders', [OrdersController, 'store'])
     router.post('/create-payment-intent', [PaymentController, 'createIntent'])
     router.post('/stripe-webhook', [StripeWebhookController, 'handle'])
     router.post('/users/save-contact', [UsersController, 'saveContact'])
@@ -40,9 +42,14 @@ router
     router
       .group(() => {
         // Products
-        router.post('/products', [ProductsController, 'store'])
-        router.put('/products/:id', [ProductsController, 'update'])
-        router.delete('/products/:id', [ProductsController, 'destroy'])
+        // --- Admin Product Management ---
+        router.get('/admin/products', [AdminProductsController, 'index']) // List with filters
+        router.post('/products', [AdminProductsController, 'store'])
+        router.put('/products/:id', [AdminProductsController, 'update'])
+
+        // Actions
+        router.patch('/products/:id/archive', [AdminProductsController, 'archive'])
+        router.patch('/products/:id/restore', [AdminProductsController, 'restore'])
 
         // Product Discounts
         router.get('/discounts', [CouponsController, 'listDiscounts'])
@@ -53,6 +60,8 @@ router
         router.put('/coupons/:id', [CouponsController, 'update'])
         router.delete('/coupons/:id', [CouponsController, 'destroy'])
 
+        router.patch('/coupons/:id/enable', [CouponsController, 'enable'])
+        router.patch('/coupons/:id/disable', [CouponsController, 'disable'])
         // Inventory
         router.post('/inventory/adjust', [AdminInventoryController, 'adjust'])
 

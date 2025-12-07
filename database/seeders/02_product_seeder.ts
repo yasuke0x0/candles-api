@@ -3,13 +3,10 @@ import Product from '#models/product'
 
 export default class extends BaseSeeder {
   async run() {
-    // We use updateOrCreateMany to ensure we don't create duplicates
-    // if the seeder is run multiple times.
     await Product.updateOrCreateMany('name', [
       {
         name: 'Midnight Amber',
-        description:
-          'A warm, resinous blend of amber, sandalwood, and a touch of vanilla orchid. Perfect for cozy evenings.',
+        description: 'A warm, resinous blend of amber, sandalwood, and a touch of vanilla orchid.',
         price: 32,
         vatRate: 20.0,
         priceNet: 26.67,
@@ -19,7 +16,7 @@ export default class extends BaseSeeder {
         burnTime: '45-50 hours',
         isNew: true,
         stock: 50,
-        // Dimensions (cm) & Weight (kg)
+        status: 'ACTIVE', // Status Added
         length: 10,
         width: 10,
         height: 12,
@@ -27,8 +24,7 @@ export default class extends BaseSeeder {
       },
       {
         name: 'Sage & Sea Salt',
-        description:
-          'Fresh oceanic breeze meeting the earthy aroma of wild sage. Invigorating and clean.',
+        description: 'Fresh oceanic breeze meeting the earthy aroma of wild sage.',
         price: 28,
         vatRate: 20.0,
         priceNet: 23.33,
@@ -38,7 +34,7 @@ export default class extends BaseSeeder {
         burnTime: '40-45 hours',
         isNew: false,
         stock: 50,
-        // Dimensions (cm) & Weight (kg)
+        status: 'ACTIVE',
         length: 9,
         width: 9,
         height: 10,
@@ -46,8 +42,7 @@ export default class extends BaseSeeder {
       },
       {
         name: 'Lavender Haze',
-        description:
-          'French lavender essential oil blended with eucalyptus for a spa-like experience.',
+        description: 'French lavender essential oil blended with eucalyptus.',
         price: 30,
         vatRate: 20.0,
         priceNet: 25.0,
@@ -57,7 +52,7 @@ export default class extends BaseSeeder {
         burnTime: '45-50 hours',
         isNew: false,
         stock: 50,
-        // Dimensions (cm) & Weight (kg)
+        status: 'ACTIVE',
         length: 9,
         width: 9,
         height: 11,
@@ -65,8 +60,7 @@ export default class extends BaseSeeder {
       },
       {
         name: 'Cedar & Tobacco',
-        description:
-          'A masculine, sophisticated scent with notes of cured tobacco leaf, cedarwood, and leather.',
+        description: 'A masculine, sophisticated scent with notes of cured tobacco leaf.',
         price: 34,
         vatRate: 20.0,
         priceNet: 28.33,
@@ -76,7 +70,7 @@ export default class extends BaseSeeder {
         burnTime: '50-55 hours',
         isNew: false,
         stock: 50,
-        // Dimensions (cm) & Weight (kg)
+        status: 'ACTIVE',
         length: 10,
         width: 10,
         height: 12,
@@ -84,8 +78,7 @@ export default class extends BaseSeeder {
       },
       {
         name: 'Golden Pear',
-        description:
-          'Sweet ripened pears simmered in brandy and spices. A holiday favorite available year-round.',
+        description: 'Sweet ripened pears simmered in brandy and spices.',
         price: 28,
         vatRate: 20.0,
         priceNet: 23.33,
@@ -95,7 +88,7 @@ export default class extends BaseSeeder {
         burnTime: '40-45 hours',
         isNew: false,
         stock: 50,
-        // Dimensions (cm) & Weight (kg)
+        status: 'ACTIVE',
         length: 8,
         width: 8,
         height: 9,
@@ -113,7 +106,7 @@ export default class extends BaseSeeder {
         burnTime: '45-50 hours',
         isNew: false,
         stock: 50,
-        // Dimensions (cm) & Weight (kg)
+        status: 'ACTIVE',
         length: 9,
         width: 9,
         height: 11,

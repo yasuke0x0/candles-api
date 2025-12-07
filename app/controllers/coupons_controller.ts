@@ -141,4 +141,32 @@ export default class CouponsController {
       message: 'Coupon applied successfully!',
     })
   }
+
+  /**
+   * PATCH /api/admin/coupons/:id/enable
+   * specific endpoint to enable a coupon
+   */
+  public async enable({ params, response }: HttpContext) {
+    try {
+      // Reuse the service's update method to set isActive to true
+      const coupon = await this.couponService.updateCoupon(params.id, { isActive: true })
+      return response.ok(coupon)
+    } catch (error) {
+      return response.notFound({ message: 'Coupon not found' })
+    }
+  }
+
+  /**
+   * PATCH /api/admin/coupons/:id/disable
+   * Specific endpoint to disable a coupon
+   */
+  public async disable({ params, response }: HttpContext) {
+    try {
+      // Reuse the service's update method to set isActive to false
+      const coupon = await this.couponService.updateCoupon(params.id, { isActive: false })
+      return response.ok(coupon)
+    } catch (error) {
+      return response.notFound({ message: 'Coupon not found' })
+    }
+  }
 }
