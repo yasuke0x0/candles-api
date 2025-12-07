@@ -11,6 +11,7 @@ const UsersController = () => import('#controllers/users_controller')
 const CouponsController = () => import('#controllers/coupons_controller')
 const ShippingController = () => import('#controllers/shipping_controller')
 const AuthController = () => import('#controllers/auth_controller')
+const AdminOrdersController = () => import('#controllers/admin_orders_controller')
 
 router
   .group(() => {
@@ -28,7 +29,7 @@ router
     router.post('/stripe-webhook', [StripeWebhookController, 'handle'])
     router.post('/users/save-contact', [UsersController, 'saveContact'])
 
-    // --- PROTECTED ROUTES ---
+    // --- PROTECTED ROUTES (Logged in Users) ---
     router
       .group(() => {
         router.get('/auth/me', [AuthController, 'me'])
@@ -43,10 +44,10 @@ router
         router.put('/products/:id', [ProductsController, 'update'])
         router.delete('/products/:id', [ProductsController, 'destroy'])
 
-        // Product Discounts (Renamed method to avoid conflict)
+        // Product Discounts
         router.get('/discounts', [CouponsController, 'listDiscounts'])
 
-        // Coupons CRUD (Cart Codes)
+        // Coupons CRUD
         router.get('/coupons', [CouponsController, 'index'])
         router.post('/coupons', [CouponsController, 'store'])
         router.put('/coupons/:id', [CouponsController, 'update'])
@@ -54,6 +55,11 @@ router
 
         // Inventory
         router.post('/inventory/adjust', [AdminInventoryController, 'adjust'])
+
+        // --- ORDER MANAGEMENT ROUTES ---
+        router.get('/orders', [AdminOrdersController, 'index']) // List
+        router.get('/orders/:id', [AdminOrdersController, 'show']) // Details
+        router.put('/orders/:id/status', [AdminOrdersController, 'updateStatus']) // Ship
       })
       .use(middleware.auth())
       .use(middleware.admin())
