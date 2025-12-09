@@ -13,6 +13,7 @@ const ShippingController = () => import('#controllers/shipping_controller')
 const AuthController = () => import('#controllers/auth_controller')
 const AdminOrdersController = () => import('#controllers/admin_orders_controller')
 const OrdersController = () => import('#controllers/orders_controller')
+const DiscountsController = () => import('#controllers/discounts_controller')
 
 router
   .group(() => {
@@ -52,7 +53,7 @@ router
         router.patch('/products/:id/restore', [AdminProductsController, 'restore'])
 
         // Product Discounts
-        router.get('/discounts', [CouponsController, 'listDiscounts'])
+        // router.get('/discounts', [CouponsController, 'listDiscounts'])
 
         // Coupons CRUD
         router.get('/coupons', [CouponsController, 'index'])
@@ -62,6 +63,13 @@ router
 
         router.patch('/coupons/:id/enable', [CouponsController, 'enable'])
         router.patch('/coupons/:id/disable', [CouponsController, 'disable'])
+
+        // --- PROMOTIONS / DISCOUNTS ---
+        router.get('/discounts', [DiscountsController, 'index']) // Replaces CouponsController.listDiscounts
+        router.post('/discounts', [DiscountsController, 'store'])
+        router.put('/discounts/:id', [DiscountsController, 'update'])
+        router.delete('/discounts/:id', [DiscountsController, 'destroy'])
+
         // Inventory
         router.post('/inventory/adjust', [AdminInventoryController, 'adjust'])
 

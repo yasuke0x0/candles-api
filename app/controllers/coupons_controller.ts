@@ -10,10 +10,30 @@ export default class CouponsController {
 
   /**
    * GET /api/admin/coupons
-   * List all coupons for the admin dashboard
+   * List all coupons with optional filtering (status, search)
    */
-  public async index({ response }: HttpContext) {
-    const coupons = await this.couponService.getAllCoupons()
+  public async index({ request, response }: HttpContext) {
+    const { search, status } = request.qs()
+
+    const query = Coupon.query()
+
+    // 1. Filter by Status (ACTIVE / INACTIVE)
+    if (status && status !== 'ALL') {
+      const isActive = status === 'ACTIVE'
+      query.where('isActive', isActive)
+    }
+
+    // 2. Filter by Search (Code or Description)
+    if (search) {
+      query.where((q) => {
+        // FIXED: Changed 'ilike' to 'like' for MySQL support
+        // MySQL 'like' is case-insensitive by default for standard text columns
+        q.where('code', 'like', `%${search}%`)
+          .orWhere('description', 'like', `%${search}%`)
+      })
+    }
+
+    const coupons = await query.orderBy('createdAt', 'desc')
     return response.ok(coupons)
   }
 

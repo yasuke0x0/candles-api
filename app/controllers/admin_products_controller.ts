@@ -25,6 +25,13 @@ export default class AdminProductsController {
     const payload = await request.validateUsing(createProductValidator)
     const discountIds = request.input('discountIds', [])
 
+    // CONSTRAINT: Limit to 1 discount per product
+    if (Array.isArray(discountIds) && discountIds.length > 1) {
+      return response.badRequest({
+        message: 'A product can only have one active discount at a time.',
+      })
+    }
+
     const product = await this.productService.create(payload)
 
     if (discountIds && Array.isArray(discountIds)) {
@@ -41,17 +48,20 @@ export default class AdminProductsController {
     const payload = await request.validateUsing(updateProductValidator)
     const discountIds = request.input('discountIds', [])
 
-    try {
-      const product = await this.productService.update(params.id, payload)
-
-      if (discountIds && Array.isArray(discountIds)) {
-        await product.related('discounts').sync(discountIds)
-      }
-
-      return response.ok(product)
-    } catch (error) {
-      return response.notFound({ message: 'Product not found' })
+    // CONSTRAINT: Limit to 1 discount per product
+    if (Array.isArray(discountIds) && discountIds.length > 1) {
+      return response.badRequest({
+        message: 'A product can only have one active discount at a time.',
+      })
     }
+
+    const product = await this.productService.update(params.id, payload)
+
+    if (discountIds && Array.isArray(discountIds)) {
+      await product.related('discounts').sync(discountIds)
+    }
+
+    return response.ok(product)
   }
 
   /**
