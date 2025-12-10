@@ -14,6 +14,7 @@ const AuthController = () => import('#controllers/auth_controller')
 const AdminOrdersController = () => import('#controllers/admin_orders_controller')
 const OrdersController = () => import('#controllers/orders_controller')
 const DiscountsController = () => import('#controllers/discounts_controller')
+const AdminCustomersController = () => import('#controllers/admin_customers_controller')
 
 router
   .group(() => {
@@ -42,6 +43,10 @@ router
     // --- ADMIN ROUTES (Super Admin Only) ---
     router
       .group(() => {
+        // --- CUSTOMERS / USERS ---
+        router.get('/customers', [AdminCustomersController, 'index'])
+        router.get('/customers/:id', [AdminCustomersController, 'show'])
+
         // Products
         // --- Admin Product Management ---
         router.get('/admin/products', [AdminProductsController, 'index']) // List with filters

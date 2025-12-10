@@ -4,14 +4,13 @@ import User from '#models/user'
 export default class extends BaseSeeder {
   async run() {
     // 1. Create 5 ADMIN Accounts
-    // we use 'as const' or explicit casting to ensure TS understands these are specific roles
     await User.updateOrCreateMany('email', [
       {
         email: 'admin@lumina.com',
         password: 'password123',
         firstName: 'Lumina',
         lastName: 'SuperAdmin',
-        roles: ['SUPER_ADMIN', 'CUSTOMER'], // Valid
+        roles: ['SUPER_ADMIN'], // Valid
         newsletter: false,
       },
       {
@@ -19,8 +18,7 @@ export default class extends BaseSeeder {
         password: 'password123',
         firstName: 'Sarah',
         lastName: 'Manager',
-        // Changed 'ADMIN' to 'SUPER_ADMIN' to match your model's allowed types
-        roles: ['SUPER_ADMIN', 'CUSTOMER'],
+        roles: ['SUPER_ADMIN'],
         newsletter: true,
       },
       {
