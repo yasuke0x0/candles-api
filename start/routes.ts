@@ -15,7 +15,7 @@ const AdminOrdersController = () => import('#controllers/admin_orders_controller
 const OrdersController = () => import('#controllers/orders_controller')
 const DiscountsController = () => import('#controllers/discounts_controller')
 const AdminCustomersController = () => import('#controllers/admin_customers_controller')
-
+const AdminDashboardController = () => import('#controllers/admin_dashboard_controller')
 router
   .group(() => {
     // --- PUBLIC ROUTES ---
@@ -82,6 +82,8 @@ router
         router.get('/orders', [AdminOrdersController, 'index']) // List
         router.get('/orders/:id', [AdminOrdersController, 'show']) // Details
         router.put('/orders/:id/status', [AdminOrdersController, 'updateStatus']) // Ship
+
+        router.get('/dashboard/stats', [AdminDashboardController, 'stats'])
       })
       .use(middleware.auth())
       .use(middleware.admin())
