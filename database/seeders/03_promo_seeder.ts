@@ -17,7 +17,6 @@ export default class extends BaseSeeder {
     const now = DateTime.now()
 
     // Using updateOrCreateMany to avoid duplicates
-    // We match against 'code'
     await Coupon.updateOrCreateMany('code', [
       {
         code: 'WELCOME10',
@@ -84,54 +83,51 @@ export default class extends BaseSeeder {
       return
     }
 
-    // --- Discount A: 15% Off Selection (Percentage) ---
+    // --- Discount A: Seasonal Sale (15% Off) ---
     const seasonalSale = await Discount.updateOrCreate(
       { name: 'Seasonal Sale' },
       {
         type: 'PERCENTAGE',
         value: 15,
-        isActive: true,
         startsAt: DateTime.now().minus({ days: 1 }), // Started yesterday
         endsAt: DateTime.now().plus({ days: 14 }), // Ends in 2 weeks
       }
     )
 
-    // Attach to the first 2 products (e.g., Midnight Amber, Sage & Sea Salt)
-    // .attach() fills the 'product_discounts' pivot table
-    const firstTwoProductIds = products.slice(0, 2).map((p) => p.id)
-    await seasonalSale.related('products').sync(firstTwoProductIds)
+    // Assign to first 2 products
+    // Logic: Update the product's discountId directly
+    const firstTwoIds = products.slice(0, 2).map((p) => p.id)
+    await Product.query().whereIn('id', firstTwoIds).update({ discount_id: seasonalSale.id })
 
-    // --- Discount B: €5 Off Clearance (Fixed) ---
+    // --- Discount B: Clearance Event (€5 Off) ---
     const clearance = await Discount.updateOrCreate(
       { name: 'Clearance Event' },
       {
         type: 'FIXED',
         value: 5.0,
-        isActive: true,
         startsAt: DateTime.now(),
       }
     )
 
-    // Attach to the 3rd product (e.g., Lavender Haze)
+    // Assign to 3rd product
     if (products[2]) {
-      await clearance.related('products').sync([products[2].id])
+      const p3 = products[2]
+      p3.discountId = clearance.id
+      await p3.save()
     }
 
     // --- Discount C: Future Sale (Inactive) ---
-    const futureSale = await Discount.updateOrCreate(
+    // We create this but don't assign it to active products to avoid conflict
+    // (since a product can now only have ONE discountId)
+    await Discount.updateOrCreate(
       { name: 'Black Friday Preview' },
       {
         type: 'PERCENTAGE',
         value: 25,
-        isActive: false, // Not active yet
         startsAt: DateTime.now().plus({ months: 1 }),
       }
     )
 
-    // Attach to all products
-    const allIds = products.map((p) => p.id)
-    await futureSale.related('products').sync(allIds)
-
-    console.log('✅ Discounts seeded and attached to products')
+    console.log('✅ Discounts seeded and assigned to products')
   }
 }

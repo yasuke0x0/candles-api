@@ -2,27 +2,45 @@ import db from '@adonisjs/lucid/services/db'
 import Order from '#models/order'
 import OrderItem from '#models/order_item'
 import User from '#models/user'
-import Coupon from '#models/coupon' //
+import Coupon from '#models/coupon'
 import InventoryService from '#services/inventory_service'
 import AddressService from '#services/address_service'
+import ShippoService from '#services/shippo_service' // 1. Import Shippo
 import HttpException from '#exceptions/http_exception'
 
 export default class OrderService {
   private inventoryService = new InventoryService()
   private addressService = new AddressService()
-
-  // Constants
-  private readonly SHIPPING_COST = 15.0
-  private readonly DEFAULT_VAT_RATE = 20.0
+  private shippoService = new ShippoService()
 
   public async createOrder(user: User, payload: any, expectedAmountInCents?: number) {
-    // 1. Extract couponCode from payload
     const { items, shippingAddress, billingAddress, paymentIntentId, couponCode } = payload
+
+    // Calculate Dynamic Shipping Cost
+    let shippingCost = 0
+    try {
+      // Construct the address object as expected by ShippoService
+      const addressForShippo = {
+        ...shippingAddress,
+        email: user.email, // Add email from user account
+        name: `${shippingAddress.firstName} ${shippingAddress.lastName}`,
+      }
+
+      // Fetch rate
+      const rateData = await this.shippoService.getShippingRate(addressForShippo, items)
+      shippingCost = rateData.cost
+    } catch (error) {
+      console.error('Shipping calculation failed during order creation', error)
+      throw new HttpException({
+        message: 'Unable to calculate shipping rates. Please verify your address.',
+        status: 400,
+      })
+    }
 
     const trx = await db.transaction()
 
     try {
-      // 2. Resolve Addresses
+      // 4. Resolve Addresses
       const shippingAddr = await this.addressService.findOrCreateAddress(
         user,
         shippingAddress,
@@ -37,7 +55,7 @@ export default class OrderService {
         trx
       )
 
-      // 3. Initialize Order (Status created)
+      // 5. Initialize Order
       const order = await Order.create(
         {
           userId: user.id,
@@ -48,10 +66,10 @@ export default class OrderService {
           totalAmount: 0,
           amountWithoutVat: 0,
           vatAmount: 0,
-          shippingAmount: this.SHIPPING_COST,
+          shippingAmount: shippingCost, // Use the calculated dynamic cost
           totalDiscount: 0,
-          couponId: null, // Initialize
-          couponDiscountAmount: 0, // Initialize
+          couponId: null,
+          couponDiscountAmount: 0,
         },
         { client: trx }
       )
@@ -63,7 +81,7 @@ export default class OrderService {
 
       const orderItemsToCreate = []
 
-      // 4. Process Items
+      // 6. Process Items
       for (const item of items) {
         // A. Decrement Stock
         const product = await this.inventoryService.adjustStock(item.id, -item.quantity, 'SALE', {
@@ -72,12 +90,12 @@ export default class OrderService {
           trx: trx,
         })
 
-        // B. Load Product Discounts
-        await product.useTransaction(trx).load('discounts')
+        // B. Load Product Discount (Singular)
+        await product.useTransaction(trx).load('discount')
 
         // C. Calculate Line Prices
         const unitPriceBase = Number(product.price)
-        const unitPriceFinal = product.currentPrice // Includes Product-level discounts
+        const unitPriceFinal = product.currentPrice
 
         // Calculate Product Discount
         const discountPerUnit = unitPriceBase - unitPriceFinal
@@ -85,15 +103,12 @@ export default class OrderService {
 
         // Find description
         let discountDescription = null
-        if (discountPerUnit > 0) {
-          const activeDiscount = product.discounts.find((d) => d.isActive)
-          if (activeDiscount) {
-            discountDescription = activeDiscount.name
-          }
+        if (discountPerUnit > 0 && product.discount) {
+          discountDescription = product.discount.name
         }
 
-        // VAT Calculations
-        const vatRate = product.vatRate || this.DEFAULT_VAT_RATE
+        // D. VAT Calculations (Dynamic from Product DB)
+        const vatRate = Number(product.vatRate) // Uses product's specific VAT rate
         const unitPriceNet = unitPriceFinal / (1 + vatRate / 100)
 
         // Line Totals
@@ -107,7 +122,7 @@ export default class OrderService {
         orderTotalVat += lineVatAmount
         orderTotalProductDiscount += totalDiscountForLine
 
-        // D. Snapshot Data
+        // E. Snapshot Data
         orderItemsToCreate.push({
           orderId: order.id,
           productId: product.id,
@@ -115,7 +130,7 @@ export default class OrderService {
           quantity: item.quantity,
           price: unitPriceBase,
           priceNet: unitPriceNet,
-          vatRate: vatRate,
+          vatRate: vatRate, // Store the specific rate used
           vatAmount: lineVatAmount,
           totalPrice: lineTotalGross,
           discountAmount: totalDiscountForLine,
@@ -123,12 +138,11 @@ export default class OrderService {
         })
       }
 
-      // 5. Handle Coupon Logic (New)
+      // 7. Handle Coupon Logic
       let couponDiscount = 0
       let activeCoupon: Coupon | null = null
 
       if (couponCode) {
-        // Find Coupon
         activeCoupon = await Coupon.findBy('code', couponCode, { client: trx })
 
         if (!activeCoupon) {
@@ -138,8 +152,6 @@ export default class OrderService {
           })
         }
 
-        // Validate (Pass the calculated subtotal)
-        //
         const validation = await activeCoupon.isValidFor(user.id, orderTotalGross)
 
         if (!validation.valid) {
@@ -149,45 +161,42 @@ export default class OrderService {
           })
         }
 
-        // Calculate Discount
         couponDiscount = activeCoupon.calculateDiscount(orderTotalGross)
 
-        // Increment Usage
         activeCoupon.currentUses += 1
         await activeCoupon.useTransaction(trx).save()
       }
 
-      // 6. Final Totals Calculation
+      // 8. Final Totals Calculation
       const subtotal = orderTotalGross
-      const finalTotal = subtotal - couponDiscount + this.SHIPPING_COST
+      const finalTotal = subtotal - couponDiscount + shippingCost // Add dynamic shipping
 
-      // Ensure total doesn't go below zero
       const safeFinalTotal = Math.max(0, finalTotal)
 
-      // 7. Security Check (Compare with PaymentIntent amount)
+      // 9. Security Check (Verify against Stripe Payment)
       if (expectedAmountInCents !== undefined) {
         const calculatedInCents = Math.round(safeFinalTotal * 100)
-        // Allow a 1-cent variance due to floating point math, or strict check
+        // Allow a 1-cent variance due to floating point math
         if (Math.abs(calculatedInCents - expectedAmountInCents) > 1) {
+          const message = `Security Mismatch: Calculated total ($${safeFinalTotal.toFixed(2)}) does not match payment ($${(expectedAmountInCents / 100).toFixed(2)}).`
+          console.error(message)
           throw new HttpException({
-            message: `Security Mismatch: Calculated total ($${safeFinalTotal.toFixed(2)}) does not match payment ($${(expectedAmountInCents / 100).toFixed(2)}).`,
-            status: 400, // Changed to 400 as this is likely a client/hack error
+            message,
+            status: 400,
           })
         }
       }
 
-      // 8. Save Items
+      // 10. Save Items & Update Order
       await OrderItem.createMany(orderItemsToCreate, { client: trx })
 
-      // 9. Update Order Record
       order.totalAmount = safeFinalTotal
-      order.amountWithoutVat = orderTotalNet // Note: This is net of product discounts, not coupon
-      order.vatAmount = orderTotalVat // Note: VAT based on line items
+      order.amountWithoutVat = orderTotalNet
+      order.vatAmount = orderTotalVat
 
-      // Store Discount Details
       order.couponId = activeCoupon ? activeCoupon.id : null
       order.couponDiscountAmount = couponDiscount
-      order.totalDiscount = orderTotalProductDiscount + couponDiscount // Combine both
+      order.totalDiscount = orderTotalProductDiscount + couponDiscount
 
       await order.useTransaction(trx).save()
 

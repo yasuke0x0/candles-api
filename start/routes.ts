@@ -8,12 +8,12 @@ const AdminInventoryController = () => import('#controllers/admin_inventory_cont
 const PaymentController = () => import('#controllers/payment_controller')
 const StripeWebhookController = () => import('#controllers/stripe_webhook_controller')
 const UsersController = () => import('#controllers/users_controller')
-const CouponsController = () => import('#controllers/coupons_controller')
+const AdminCouponsController = () => import('#controllers/admin_coupons_controller')
 const ShippingController = () => import('#controllers/shipping_controller')
 const AuthController = () => import('#controllers/auth_controller')
 const AdminOrdersController = () => import('#controllers/admin_orders_controller')
 const OrdersController = () => import('#controllers/orders_controller')
-const DiscountsController = () => import('#controllers/discounts_controller')
+const AdminDiscountsController = () => import('#controllers/admin_discounts_controller')
 const AdminCustomersController = () => import('#controllers/admin_customers_controller')
 const AdminDashboardController = () => import('#controllers/admin_dashboard_controller')
 router
@@ -25,7 +25,7 @@ router
     router.post('/orders', [OrdersController, 'store'])
 
     // Public Coupon Check (for Cart)
-    router.post('/coupons/check', [CouponsController, 'check'])
+    router.post('/coupons/check', [AdminCouponsController, 'check'])
 
     router.get('/products', [ProductsController, 'index'])
     router.get('/products/:id', [ProductsController, 'show'])
@@ -57,23 +57,20 @@ router
         router.patch('/products/:id/archive', [AdminProductsController, 'archive'])
         router.patch('/products/:id/restore', [AdminProductsController, 'restore'])
 
-        // Product Discounts
-        // router.get('/discounts', [CouponsController, 'listDiscounts'])
-
         // Coupons CRUD
-        router.get('/coupons', [CouponsController, 'index'])
-        router.post('/coupons', [CouponsController, 'store'])
-        router.put('/coupons/:id', [CouponsController, 'update'])
-        router.delete('/coupons/:id', [CouponsController, 'destroy'])
+        router.get('/coupons', [AdminCouponsController, 'index'])
+        router.post('/coupons', [AdminCouponsController, 'store'])
+        router.put('/coupons/:id', [AdminCouponsController, 'update'])
+        router.delete('/coupons/:id', [AdminCouponsController, 'destroy'])
 
-        router.patch('/coupons/:id/enable', [CouponsController, 'enable'])
-        router.patch('/coupons/:id/disable', [CouponsController, 'disable'])
+        router.patch('/coupons/:id/enable', [AdminCouponsController, 'enable'])
+        router.patch('/coupons/:id/disable', [AdminCouponsController, 'disable'])
 
         // --- PROMOTIONS / DISCOUNTS ---
-        router.get('/discounts', [DiscountsController, 'index']) // Replaces CouponsController.listDiscounts
-        router.post('/discounts', [DiscountsController, 'store'])
-        router.put('/discounts/:id', [DiscountsController, 'update'])
-        router.delete('/discounts/:id', [DiscountsController, 'destroy'])
+        router.get('/discounts', [AdminDiscountsController, 'index']) // Replaces CouponsController.listDiscounts
+        router.post('/discounts', [AdminDiscountsController, 'store'])
+        router.put('/discounts/:id', [AdminDiscountsController, 'update'])
+        router.delete('/discounts/:id', [AdminDiscountsController, 'destroy'])
 
         // Inventory
         router.post('/inventory/adjust', [AdminInventoryController, 'adjust'])

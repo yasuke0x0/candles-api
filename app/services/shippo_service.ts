@@ -2,6 +2,7 @@ import { DistanceUnitEnum, Shippo, WeightUnitEnum } from 'shippo'
 import env from '#start/env'
 import PackagingService from '#services/packaging_service'
 import Product from '#models/product'
+import HttpException from '#exceptions/http_exception'
 
 export default class ShippoService {
   private client: Shippo
@@ -54,7 +55,7 @@ export default class ShippoService {
         height: optimizedBox.height,
         distanceUnit: DistanceUnitEnum.Cm, // Using Enum for type safety
         weight: optimizedBox.weight,
-        massUnit: WeightUnitEnum.Kg, // Using Enum for type safety
+        massUnit: WeightUnitEnum.Kg,
       }
 
       // 5. Create Shipment to get Rates
@@ -70,15 +71,15 @@ export default class ShippoService {
           email: toAddress.email,
         },
         parcels: [parcel],
-        async: false, // Wait for rates immediately
+        async: false,
       })
 
       // 6. Find the cheapest rate
       const rates = shipment.rates
 
       if (!rates || rates.length === 0) {
-        console.warn('No rates found from Shippo, defaulting to flat rate.')
-        return 7.9 // Fallback
+        console.error('No rates found from Shippo, defaulting to flat rate.')
+        throw new HttpException({ message: 'Could not calculate the shipping rate', status: 400 })
       }
 
       // Sort by amount (ascending)
@@ -97,8 +98,7 @@ export default class ShippoService {
       }
     } catch (error) {
       console.error('Shippo API Error:', error)
-      // Return fallback rate if API fails (so the user can still checkout)
-      return 7.9
+      throw new HttpException({ message: 'Could not calculate the shipping rate', status: 400 })
     }
   }
 }

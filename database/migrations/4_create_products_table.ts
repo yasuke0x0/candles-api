@@ -14,8 +14,7 @@ export default class extends BaseSchema {
       table.string('burn_time').nullable()
       table.boolean('is_new').defaultTo(false)
 
-      // --- STATUS (New) ---
-      // 'ACTIVE' or 'ARCHIVED'
+      // Status
       table.string('status').defaultTo('ACTIVE').notNullable()
 
       // JSON column for Scent Notes
@@ -24,16 +23,24 @@ export default class extends BaseSchema {
       // Inventory
       table.integer('stock').unsigned().defaultTo(0).notNullable()
 
-      // --- PRICING & VAT ---
+      // Pricing & VAT
       table.decimal('price', 12, 2).notNullable()
       table.decimal('vat_rate', 10, 2).defaultTo(20.0).notNullable()
+      table.decimal('price_net', 12, 2).nullable()
 
+      // Dimensions
       table.decimal('length', 8, 2).defaultTo(0)
       table.decimal('width', 8, 2).defaultTo(0)
       table.decimal('height', 8, 2).defaultTo(0)
       table.decimal('weight', 8, 2).defaultTo(0)
 
-      table.decimal('price_net', 12, 2).nullable()
+      // --- NEW: Single Active Discount ---
+      table
+        .integer('discount_id')
+        .unsigned()
+        .nullable()
+        .references('discounts.id')
+        .onDelete('SET NULL')
 
       table.timestamp('created_at')
       table.timestamp('updated_at')

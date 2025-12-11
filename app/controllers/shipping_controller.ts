@@ -9,6 +9,7 @@ export default class ShippingController {
    * Usage: Fetch the live shipping rate for a given address and cart
    */
   public async rates({ request, response }: HttpContext) {
+    // throw new HttpException({message: "nope"})
     // 1. Get data from frontend
     // Expects 'address' object and 'items' array
     const { address, items } = request.only(['address', 'items'])

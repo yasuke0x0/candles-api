@@ -2,7 +2,6 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import CouponService from '#services/coupon_service'
 import Coupon from '#models/coupon'
-import Discount from '#models/discount'
 
 @inject()
 export default class CouponsController {
@@ -28,8 +27,7 @@ export default class CouponsController {
       query.where((q) => {
         // FIXED: Changed 'ilike' to 'like' for MySQL support
         // MySQL 'like' is case-insensitive by default for standard text columns
-        q.where('code', 'like', `%${search}%`)
-          .orWhere('description', 'like', `%${search}%`)
+        q.where('code', 'like', `%${search}%`).orWhere('description', 'like', `%${search}%`)
       })
     }
 
@@ -102,17 +100,6 @@ export default class CouponsController {
     } catch (error) {
       return response.notFound({ message: 'Coupon not found' })
     }
-  }
-
-  // --- EXISTING METHODS (Preserved) ---
-
-  /**
-   * GET /api/discounts
-   * (Preserved from your previous code for Product Discounts)
-   */
-  public async listDiscounts({ response }: HttpContext) {
-    const discounts = await Discount.query().where('isActive', true).orderBy('createdAt', 'desc')
-    return response.ok(discounts)
   }
 
   /**
