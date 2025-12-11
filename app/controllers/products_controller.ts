@@ -19,11 +19,6 @@ export default class ProductsController {
     try {
       const product = await this.productService.getById(params.id)
 
-      // Optional: Logic to hide archived from public if needed
-      if (product.status === 'ARCHIVED') {
-        // return response.notFound({ message: 'Product not available' })
-      }
-
       return response.ok(product)
     } catch (error) {
       return response.notFound({ message: 'Product not found' })

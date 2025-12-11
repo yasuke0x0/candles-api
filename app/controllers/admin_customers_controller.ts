@@ -12,30 +12,35 @@ export default class AdminCustomersController {
     const search = request.input('search')
 
     const query = User.query()
-      .where('roles', 'LIKE', '%"CUSTOMER"%') // Optional: Filter only customers if you have admin users mixed in
+      .where('roles', 'LIKE', '%"CUSTOMER"%')
       .preload('addresses')
-      // Preload orders to calculate stats on the fly (for a simple implementation)
-      // For high-scale apps, you would use a separate 'stats' table or aggregate queries.
       .preload('orders', (q) => q.whereIn('status', ['succeeded', 'SHIPPED', 'READY_TO_SHIP']))
 
-    // Search Logic (Name or Email)
+    // --- UPDATED SEARCH LOGIC ---
     if (search) {
-      query.where((q) => {
-        q.where('email', 'like', `%${search}%`)
-          .orWhere('first_name', 'like', `%${search}%`)
-          .orWhere('last_name', 'like', `%${search}%`)
+      const term = `%${search}%`
+
+      query.where((group) => {
+        // 1. Standard checks
+        group.where('email', 'like', term)
+        group.orWhere('first_name', 'like', term)
+        group.orWhere('last_name', 'like', term)
+
+        // 2. Combined: "Firstname Lastname" (e.g. "John Doe")
+        // MySQL / PostgreSQL compatible CONCAT
+        group.orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [term])
+
+        // 3. Combined: "Lastname Firstname" (e.g. "Doe John")
+        group.orWhereRaw("CONCAT(last_name, ' ', first_name) LIKE ?", [term])
       })
     }
+    // ----------------------------
 
     query.orderBy('created_at', 'desc')
 
     const users = await query.paginate(page, limit)
 
-    // Serialize and attach computed stats
     const serialized = users.serialize().data.map((user: any) => {
-      // We have to find the original model in 'users' array to access the preloaded 'orders'
-      // effectively, but since serialize() converts to JSON, we can do this cleaner:
-
       const originalUser = users.find((u) => u.id === user.id)
       const validOrders = originalUser?.orders || []
 
@@ -48,7 +53,6 @@ export default class AdminCustomersController {
           totalOrders,
           totalSpent: Number(totalSpent.toFixed(2)),
         },
-        // We don't need to send the full order list in the index view
         orders: undefined,
       }
     })
