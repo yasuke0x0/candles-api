@@ -59,6 +59,7 @@ export default class ShippoService {
       }
 
       // 5. Create Shipment to get Rates
+      console.log(toAddress)
       // V2 SDK call
       const shipment = await this.client.shipments.create({
         addressFrom: this.fromAddress,

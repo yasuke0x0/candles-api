@@ -37,28 +37,28 @@ export default class Order extends BaseModel {
   @hasMany(() => OrderItem)
   declare items: HasMany<typeof OrderItem>
 
-  // --- FINANCIAL DATA ---
+  // --- FINANCIAL DATA (FIXED: Cast to Number) ---
 
   // Grand Total (What the customer actually paid)
   // Formula: amountWithoutVat + vatAmount + shippingAmount - totalDiscount (if discount is applied after VAT)
   // Usually, totalAmount is the final charge.
-  @column()
+  @column({ consume: (value) => Number(value) })
   declare totalAmount: number
 
   // Subtotal before tax
-  @column()
+  @column({ consume: (value) => Number(value) })
   declare amountWithoutVat: number
 
   // Total Tax
-  @column()
+  @column({ consume: (value) => Number(value) })
   declare vatAmount: number
 
   // Shipping Cost
-  @column()
+  @column({ consume: (value) => Number(value) })
   declare shippingAmount: number
 
   // Total Discount Applied
-  @column()
+  @column({ consume: (value) => Number(value) })
   declare totalDiscount: number
 
   // --- META DATA ---
@@ -86,8 +86,8 @@ export default class Order extends BaseModel {
   @belongsTo(() => Coupon)
   declare coupon: BelongsTo<typeof Coupon>
 
-  // Stores specifically how much the coupon removed (separate from product discounts)
-  @column()
+  // Stores specifically how much the coupon removed
+  @column({ consume: (value) => Number(value) })
   declare couponDiscountAmount: number
 
   // --- TIMESTAMPS ---
