@@ -73,7 +73,7 @@ router
         router.delete('/discounts/:id', [AdminDiscountsController, 'destroy'])
 
         // Inventory
-        router.post('/inventory/adjust', [AdminInventoryController, 'adjust'])
+        router.get('/inventory-movements', [AdminInventoryController, 'index'])
 
         // --- ORDER MANAGEMENT ROUTES ---
         router.get('/orders', [AdminOrdersController, 'index']) // List

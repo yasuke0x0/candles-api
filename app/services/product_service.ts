@@ -1,6 +1,7 @@
 import Product from '#models/product'
 import Discount from '#models/discount'
 import DiscountHistory from '#models/discount_history'
+import InventoryMovement from '#models/inventory_movement' // 1. Import Model
 import { DateTime } from 'luxon'
 
 export default class ProductService {
@@ -34,30 +35,57 @@ export default class ProductService {
   }
 
   public async create(payload: any, discountId?: number) {
-    // Exclude discountId from initial payload
     const { discountId: excludedId, ...productData } = payload
 
-    // 1. Create Product (Set discountId to null initially to avoid undefined errors)
     const product = await Product.create({
       ...productData,
       status: 'ACTIVE',
-      discountId: null // Explicit null
+      discountId: null,
     })
 
-    // 2. Sync Discount if provided
     if (discountId !== undefined) {
       await this.syncDiscountAndLogHistory(product, discountId)
+    }
+
+    // Optional: Initial stock movement could be recorded here as RESTOCK if stock > 0
+    if (product.stock > 0) {
+      await InventoryMovement.create({
+        productId: product.id,
+        quantity: product.stock,
+        type: 'RESTOCK',
+        reason: 'Initial Stock',
+        stockAfter: product.stock,
+      })
     }
 
     return product
   }
 
-  public async update(id: number, payload: any, discountId?: number | null) {
+  // 2. Updated Signature to accept userId
+  public async update(id: number, payload: any, discountId?: number | null, userId?: number) {
     const product = await Product.findOrFail(id)
     const { discountId: excludedId, ...productData } = payload
 
+    // 3. Capture Old Stock
+    const previousStock = product.stock
+
     product.merge(productData)
     await product.save()
+
+    // 4. Check for Manual Stock Adjustment
+    // We check if stock is defined in payload and if it has actually changed
+    if (productData.stock !== undefined && productData.stock !== previousStock) {
+      const diff = productData.stock - previousStock
+
+      await InventoryMovement.create({
+        productId: product.id,
+        userId: userId || null, // Track the admin
+        quantity: diff, // Can be positive (add) or negative (remove)
+        type: 'MANUAL_ADJUSTMENT',
+        reason: 'Admin update via Product Form',
+        stockAfter: product.stock,
+      })
+    }
 
     if (discountId !== undefined) {
       await this.syncDiscountAndLogHistory(product, discountId)
@@ -81,7 +109,6 @@ export default class ProductService {
   }
 
   private async syncDiscountAndLogHistory(product: Product, newDiscountId: number | null) {
-    // Load current relationship safely
     await product.load('discount')
 
     const currentDiscount = product.discount
@@ -91,18 +118,15 @@ export default class ProductService {
       return
     }
 
-    // FIX 2: Use standard SQL format for MySQL compatibility
     const nowSql = DateTime.now().toFormat('yyyy-MM-dd HH:mm:ss')
 
-    // Close old history
     if (currentDiscount) {
       await DiscountHistory.query()
         .where('product_id', product.id)
         .whereNull('removed_at')
-        .update({ removed_at: nowSql }) // Using formatted string
+        .update({ removed_at: nowSql })
     }
 
-    // Open new history
     if (newDiscountId) {
       const discount = await Discount.find(newDiscountId)
       if (discount) {
@@ -123,12 +147,11 @@ export default class ProductService {
           discountValue: discount.value,
           originalPrice: originalPrice,
           discountedPrice: Number(discountedPrice.toFixed(2)),
-          appliedAt: DateTime.now(), // Lucid handles creating from DateTime object correctly here
+          appliedAt: DateTime.now(),
         })
       }
     }
 
-    // Update Product
     product.discountId = newDiscountId
     await product.save()
   }

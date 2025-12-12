@@ -17,7 +17,6 @@ export default class AdminProductsController {
 
   public async store({ request, response }: HttpContext) {
     const payload = await request.validateUsing(createProductValidator)
-
     const discountId = request.input('discountId')
 
     const product = await this.productService.create(payload, discountId)
@@ -25,13 +24,12 @@ export default class AdminProductsController {
     return response.created(product)
   }
 
-  public async update({ params, request, response }: HttpContext) {
+  public async update({ params, request, response, auth }: HttpContext) {
     const payload = await request.validateUsing(updateProductValidator)
-
     const discountId = request.input('discountId')
 
-    // Pass single ID to service
-    const product = await this.productService.update(params.id, payload, discountId)
+    // FIX: Pass auth.user.id to track who is making the manual adjustment
+    const product = await this.productService.update(params.id, payload, discountId, auth.user?.id)
 
     return response.ok(product)
   }
