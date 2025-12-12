@@ -1,4 +1,10 @@
-import { DistanceUnitEnum, Shippo, WeightUnitEnum } from 'shippo'
+import {
+  DistanceUnitEnum,
+  ServiceLevelChronopostEnum,
+  ServiceLevelColissimoEnum,
+  Shippo,
+  WeightUnitEnum,
+} from 'shippo'
 import env from '#start/env'
 import PackagingService from '#services/packaging_service'
 import Product from '#models/product'
@@ -85,12 +91,12 @@ export default class ShippoService {
 
         // Logic A: Colissimo -> ONLY 'colissimo_home'
         if (token.startsWith('colissimo')) {
-          return token === 'colissimo_home'
+          return token === ServiceLevelColissimoEnum.ColissimoHome
         }
 
         // Logic B: Chronopost -> ALL EXCEPT 'chronopost_relais_fr'
         if (token.startsWith('chronopost')) {
-          return token !== 'chronopost_relais_fr'
+          return token !== ServiceLevelChronopostEnum.ChronopostRelaisFr
         }
 
         // Ignore all other providers (DHL, UPS, etc.)
