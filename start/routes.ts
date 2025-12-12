@@ -20,11 +20,16 @@ const AdminProductPriceHistoryController = () =>
   import('#controllers/admin_product_price_history_controller')
 const AdminCustomersController = () => import('#controllers/admin_customers_controller')
 const AdminDashboardController = () => import('#controllers/admin_dashboard_controller')
+const GoogleMapsController = () => import('#controllers/google_maps_controller')
+
 router
   .group(() => {
     // --- PUBLIC ROUTES ---
     router.post('/login', [AuthController, 'login'])
     router.post('/shipping/rates', [ShippingController, 'rates'])
+
+    router.get('/maps/autocomplete', [GoogleMapsController, 'autocomplete'])
+    router.get('/maps/details', [GoogleMapsController, 'details'])
 
     router.post('/orders', [OrdersController, 'store'])
 

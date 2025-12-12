@@ -33,6 +33,10 @@ export default class ShippoService {
   }
 
   public async getShippingRate(toAddress: any, items: { id: number; quantity: number }[]) {
+    if (toAddress.country !== 'France') {
+      throw new HttpException({ message: 'Shipping is only supported in France', status: 400 })
+    }
+
     try {
       // 1. Fetch Products
       const productIds = items.map((i) => i.id)
@@ -68,7 +72,7 @@ export default class ShippoService {
           street1: toAddress.address,
           city: toAddress.city,
           zip: toAddress.zip,
-          country: toAddress.country === 'France' ? 'FR' : toAddress.country,
+          country: 'FR',
           email: toAddress.email,
         },
         parcels: [parcel],

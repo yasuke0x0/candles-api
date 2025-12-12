@@ -40,4 +40,6 @@ export default await Env.create(new URL('../', import.meta.url), {
   SHIPPO_FROM_COUNTRY: Env.schema.string(),
   SHIPPO_FROM_PHONE: Env.schema.string(),
   SHIPPO_FROM_EMAIL: Env.schema.string(),
+
+  GOOGLE_MAPS_API_KEY: Env.schema.string(),
 })
