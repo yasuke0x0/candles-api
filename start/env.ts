@@ -32,4 +32,12 @@ export default await Env.create(new URL('../', import.meta.url), {
   STRIPE_SECRET_KEY: Env.schema.string(),
   STRIPE_WEBHOOK_SECRET: Env.schema.string(),
   SHIPPO_API_TOKEN: Env.schema.string(),
+  SHIPPO_FROM_NAME: Env.schema.string(),
+  SHIPPO_FROM_COMPANY: Env.schema.string(),
+  SHIPPO_FROM_STREET1: Env.schema.string(),
+  SHIPPO_FROM_CITY: Env.schema.string(),
+  SHIPPO_FROM_ZIP: Env.schema.string(),
+  SHIPPO_FROM_COUNTRY: Env.schema.string(),
+  SHIPPO_FROM_PHONE: Env.schema.string(),
+  SHIPPO_FROM_EMAIL: Env.schema.string(),
 })

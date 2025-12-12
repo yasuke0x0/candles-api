@@ -3,21 +3,21 @@ import env from '#start/env'
 import PackagingService from '#services/packaging_service'
 import Product from '#models/product'
 import HttpException from '#exceptions/http_exception'
+import { ParcelCreateRequest } from 'shippo/src/models/components/parcelcreaterequest.js'
 
 export default class ShippoService {
   private client: Shippo
   private packagingService = new PackagingService()
 
-  // Warehouse / "From" Address
   private fromAddress = {
-    name: 'Lumina Botanicals',
-    company: 'Lumina HQ',
-    street1: '8 rue berthy albrecht',
-    city: 'Toulouse',
-    zip: '31300',
-    country: 'FR',
-    phone: '+33123456789',
-    email: 'orders@luminabotanicals.com',
+    name: env.get('SHIPPO_FROM_NAME'),
+    company: env.get('SHIPPO_FROM_COMPANY'),
+    street1: env.get('SHIPPO_FROM_STREET1'),
+    city: env.get('SHIPPO_FROM_CITY'),
+    zip: env.get('SHIPPO_FROM_ZIP'),
+    country: env.get('SHIPPO_FROM_COUNTRY'),
+    phone: env.get('SHIPPO_FROM_PHONE'),
+    email: env.get('SHIPPO_FROM_EMAIL'),
   }
 
   constructor() {
@@ -26,17 +26,13 @@ export default class ShippoService {
     })
   }
 
-  /**
-   * Calculates shipping rates based on cart items and destination.
-   * Returns the CHEAPEST available rate.
-   */
   public async getShippingRate(toAddress: any, items: { id: number; quantity: number }[]) {
     try {
-      // 1. Fetch Real Product Dimensions from DB
+      // 1. Fetch Products
       const productIds = items.map((i) => i.id)
       const products = await Product.query().whereIn('id', productIds)
 
-      // 2. Prepare data for the 3D Packer
+      // 2. Prepare for Packer
       const productsToPack = items
         .map((item) => {
           const product = products.find((p) => p.id === item.id)
@@ -45,22 +41,20 @@ export default class ShippoService {
         })
         .filter((item) => item !== null) as { product: Product; quantity: number }[]
 
-      // 3. Calculate the Perfect Box
+      // 3. Optimize Box
       const optimizedBox = this.packagingService.findBestBox(productsToPack)
 
-      // 4. Construct Shippo Parcel Object
-      const parcel = {
+      // 4. Create Parcel Object
+      const parcel: ParcelCreateRequest = {
         length: optimizedBox.length,
         width: optimizedBox.width,
         height: optimizedBox.height,
-        distanceUnit: DistanceUnitEnum.Cm, // Using Enum for type safety
+        distanceUnit: DistanceUnitEnum.Cm,
         weight: optimizedBox.weight,
         massUnit: WeightUnitEnum.Kg,
       }
 
-      // 5. Create Shipment to get Rates
-      console.log(toAddress)
-      // V2 SDK call
+      // 5. Create Shipment
       const shipment = await this.client.shipments.create({
         addressFrom: this.fromAddress,
         addressTo: {
@@ -75,21 +69,48 @@ export default class ShippoService {
         async: false,
       })
 
-      // 6. Find the cheapest rate
       const rates = shipment.rates
 
       if (!rates || rates.length === 0) {
-        console.error('No rates found from Shippo, defaulting to flat rate.')
+        console.error('No rates found from Shippo.')
         throw new HttpException({ message: 'Could not calculate the shipping rate', status: 400 })
       }
 
-      // Sort by amount (ascending)
-      const sortedRates = rates.sort(
+      // 6. FILTER: Strict Token-Based Logic
+      const filteredRates = rates.filter((rate: any) => {
+        const token = rate.servicelevel?.token
+
+        // Safety check: if no token, skip
+        if (!token) return false
+
+        // Logic A: Colissimo -> ONLY 'colissimo_home'
+        if (token.startsWith('colissimo')) {
+          return token === 'colissimo_home'
+        }
+
+        // Logic B: Chronopost -> ALL EXCEPT 'chronopost_relais_fr'
+        if (token.startsWith('chronopost')) {
+          return token !== 'chronopost_relais_fr'
+        }
+
+        // Ignore all other providers (DHL, UPS, etc.)
+        return false
+      })
+
+      if (filteredRates.length === 0) {
+        console.warn('Rates found but filtered out based on service level restrictions.')
+        throw new HttpException({
+          message: 'No suitable home delivery options available for this address.',
+          status: 400,
+        })
+      }
+
+      // 7. Find the cheapest
+      const sortedRates = filteredRates.sort(
         (a: any, b: any) => Number.parseFloat(a.amount) - Number.parseFloat(b.amount)
       )
       const bestRate = sortedRates[0]
 
-      // 7. Return Normalized Data
       return {
         cost: Number.parseFloat(bestRate.amount),
         currency: bestRate.currency,
@@ -98,6 +119,7 @@ export default class ShippoService {
         estimatedDays: bestRate.estimatedDays,
       }
     } catch (error) {
+      if (error instanceof HttpException) throw error
       console.error('Shippo API Error:', error)
       throw new HttpException({ message: 'Could not calculate the shipping rate', status: 400 })
     }
