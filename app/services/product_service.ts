@@ -3,6 +3,7 @@ import Discount from '#models/discount'
 import DiscountHistory from '#models/discount_history'
 import InventoryMovement from '#models/inventory_movement' // 1. Import Model
 import { DateTime } from 'luxon'
+import ProductPriceHistory from '#models/product_price_history'
 
 export default class ProductService {
   public async getActive() {
@@ -66,24 +67,34 @@ export default class ProductService {
     const product = await Product.findOrFail(id)
     const { discountId: excludedId, ...productData } = payload
 
-    // 3. Capture Old Stock
+    // Capture Old State
     const previousStock = product.stock
+    const previousPrice = Number(product.price)
 
     product.merge(productData)
     await product.save()
 
-    // 4. Check for Manual Stock Adjustment
-    // We check if stock is defined in payload and if it has actually changed
+    // 1. Check for Stock Changes
     if (productData.stock !== undefined && productData.stock !== previousStock) {
       const diff = productData.stock - previousStock
-
       await InventoryMovement.create({
         productId: product.id,
-        userId: userId || null, // Track the admin
-        quantity: diff, // Can be positive (add) or negative (remove)
+        userId: userId || null,
+        quantity: diff,
         type: 'MANUAL_ADJUSTMENT',
         reason: 'Admin update via Product Form',
         stockAfter: product.stock,
+      })
+    }
+
+    // 2. Check for Price Changes (NEW)
+    const newPrice = Number(product.price)
+    if (newPrice !== previousPrice) {
+      await ProductPriceHistory.create({
+        productId: product.id,
+        userId: userId || null,
+        oldPrice: previousPrice,
+        newPrice: newPrice,
       })
     }
 

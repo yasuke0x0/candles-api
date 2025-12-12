@@ -14,6 +14,10 @@ const AuthController = () => import('#controllers/auth_controller')
 const AdminOrdersController = () => import('#controllers/admin_orders_controller')
 const OrdersController = () => import('#controllers/orders_controller')
 const AdminDiscountsController = () => import('#controllers/admin_discounts_controller')
+const AdminDiscountHistoryController = () =>
+  import('#controllers/admin_discount_history_controller')
+const AdminProductPriceHistoryController = () =>
+  import('#controllers/admin_product_price_history_controller')
 const AdminCustomersController = () => import('#controllers/admin_customers_controller')
 const AdminDashboardController = () => import('#controllers/admin_dashboard_controller')
 router
@@ -71,6 +75,12 @@ router
         router.post('/discounts', [AdminDiscountsController, 'store'])
         router.put('/discounts/:id', [AdminDiscountsController, 'update'])
         router.delete('/discounts/:id', [AdminDiscountsController, 'destroy'])
+
+        // Discount history
+        router.get('/discount-history', [AdminDiscountHistoryController, 'index'])
+
+        // Price history
+        router.get('/product-price-history', [AdminProductPriceHistoryController, 'index'])
 
         // Inventory
         router.get('/inventory-movements', [AdminInventoryController, 'index'])
